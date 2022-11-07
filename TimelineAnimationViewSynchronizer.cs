@@ -1,8 +1,8 @@
-using UnityEngine;
-using UnityEditor;
-using UnityEditorInternal;
-using UnityEditor.Timeline;
 using System.Reflection;
+using UnityEditor;
+using UnityEditor.Timeline;
+using UnityEditorInternal;
+using UnityEngine;
 
 #if UNITY_EDITOR
 public class TimelineAnimationViewSynchronizer

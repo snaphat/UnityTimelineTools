@@ -42,8 +42,11 @@ public class TimelineAnimationViewSynchronizer
         var SetShownHRangeInsideMargins = m_TimeArea.GetType().GetMethod("SetShownHRangeInsideMargins");
         if (SetShownHRangeInsideMargins == null) return;
 
+        // Call Range Updater on Animation view
         object[] parametersArray = new object[] { visibleTimeRange.x, visibleTimeRange.y };
         SetShownHRangeInsideMargins.Invoke(m_TimeArea, parametersArray);
+        
+        // Force repaint
         animationWindow.Repaint();
     }
 }

@@ -12,7 +12,7 @@ public class TimelineAnimationViewSynchronizer
     private const string menuPath = "Tools/Sync Timeline && Animation Views";
 
     [MenuItem(menuPath)]
-    private static void Sync(MenuCommand menuCommand)
+    public static void Sync()
     {
         enabled = !enabled;
         Menu.SetChecked(menuPath, enabled);
@@ -45,7 +45,7 @@ public class TimelineAnimationViewSynchronizer
         // Call Range Updater on Animation view
         object[] parametersArray = new object[] { visibleTimeRange.x, visibleTimeRange.y };
         SetShownHRangeInsideMargins.Invoke(m_TimeArea, parametersArray);
-        
+
         // Force repaint
         animationWindow.Repaint();
     }

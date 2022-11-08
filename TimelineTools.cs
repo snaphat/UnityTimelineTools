@@ -91,6 +91,10 @@ public class TimelineTools
             // filter only unlocked tracks
             var unlockedTracks = timelineAsset.GetOutputTracks().Where(e => !e.lockedInHierarchy);
 
+            // Compute tolerance for determining whether to shift a track or not
+            double kTimeEpsilon = 1e-14; // from com.unity.timeline/Runtime/Utilities/TimeUtility.cs 
+            var tolerance = Math.Max(Math.Abs(currentTime), 1) * timelineAsset.editorSettings.frameRate * kTimeEpsilon;
+
             // Handle infinite animation clips (really tracks)
             // filter infinite animation tracks
             var infiniteTracks = unlockedTracks.Where(e => e is AnimationTrack a && !a.inClipMode).Select(e => (AnimationTrack)e);
@@ -121,7 +125,7 @@ public class TimelineTools
                     var curve = AnimationUtility.GetEditorCurve(clip, bind);
                     var keys = curve.keys;
                     for (var i = 0; i < keys.Length; i++)
-                        if (keys[i].time > currentTime) keys[i].time += amount;
+                        if ((keys[i].time - currentTime) >= -tolerance) keys[i].time += amount;
                     curve.keys = keys;
                     AnimationUtility.SetEditorCurve(clip, bind, curve);
                 }
@@ -132,8 +136,14 @@ public class TimelineTools
                 {
                     var curve = AnimationUtility.GetObjectReferenceCurve(clip, bind);
                     for (var i = 0; i < curve.Length; i++)
-                        if (curve[i].time > currentTime) curve[i].time += amount;
+                        if ((curve[i].time - currentTime) >= -tolerance) curve[i].time += amount;
                     AnimationUtility.SetObjectReferenceCurve(clip, bind, curve);
+                }
+
+                // Grab markers to modify in track based off of current time and tolerance
+                foreach (var marker in track.GetMarkers())
+                {
+                    if ((marker.time - currentTime) >= -tolerance) marker.time += amount;
                 }
 
                 // Mark clip as dirty
@@ -147,10 +157,6 @@ public class TimelineTools
 
                 // Get amount of time to insert/cut in seconds for tracks using the timeline assets frame rate
                 var amount = frames / timelineAsset.editorSettings.frameRate;
-
-                // Compute tolerance for determining whether to shift a track or not
-                double kTimeEpsilon = 1e-14; // from com.unity.timeline/Runtime/Utilities/TimeUtility.cs 
-                var tolerance = Math.Max(Math.Abs(currentTime), 1) * timelineAsset.editorSettings.frameRate * kTimeEpsilon;
 
                 // Grab clips to modify in track based off of current time and tolerance
                 var clips = otherTracks.SelectMany(x => x.GetClips()).Where(x => (x.start - currentTime) >= -tolerance).ToList();

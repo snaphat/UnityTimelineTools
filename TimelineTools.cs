@@ -7,13 +7,15 @@ using UnityEditor.Timeline;
 using UnityEditor.Timeline.Actions;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.Playables;
 using UnityEngine.Timeline;
+using Object = UnityEngine.Object;
 
 #if UNITY_EDITOR
 // Adds support for inserting and cutting frames in all tracks and infinite clips within the timeline.
-public class TimelineTools
+namespace TimelineTools
 {
-    class TimelineInsertCutExtensions
+    class InsertCutExtensions
     {
         // Menu entries
         const string MenuPath_Insert_1 = "Tools/Timeline/Insert Frames/1 Frame";
@@ -46,7 +48,7 @@ public class TimelineTools
             public override ActionValidity Validate(ActionContext actionContext) { return ActionValidity.Valid; }
             public override bool Execute(ActionContext actionContext)
             { Insert(); return true; }
-            public static void Insert() { TimelineInsertCutExtensions.Insert(((Frames)Attribute.GetCustomAttribute(typeof(T), typeof(Frames))).frames); }
+            public static void Insert() { InsertCutExtensions.Insert(((Frames)Attribute.GetCustomAttribute(typeof(T), typeof(Frames))).frames); }
         };
 
         // Add insert menu items
@@ -97,7 +99,7 @@ public class TimelineTools
 
             // Handle infinite animation clips (really tracks)
             // filter infinite animation tracks
-            var infiniteTracks = unlockedTracks.Where(e => e is AnimationTrack a && !a.inClipMode).Select(e => (AnimationTrack)e);
+            var infiniteTracks = unlockedTracks.OfType<AnimationTrack>().Where(e => !e.inClipMode);
             foreach (var track in infiniteTracks)
             {
                 // Grab the infinite clip in track
@@ -178,10 +180,10 @@ public class TimelineTools
         }
     }
 
-    public class TimelineAnimationViewSynchronizer
+    // Adds support for Synchronizing timeline with animation view
+    public class AnimationViewSynchronizer
     {
         private static bool enabled = false;
-
         private const string menuPath = "Tools/Timeline/Sync Timeline && Animation Views";
 
         [MenuItem(menuPath, priority = 0)]
@@ -220,6 +222,239 @@ public class TimelineTools
 
             // Force repaint
             animationWindow.Repaint();
+        }
+    }
+
+    public partial class Events
+    {
+        [InitializeOnLoadMethod]
+        public static void OnLoad()
+        {
+            EditorApplication.update -= OnUpdate;
+            EditorApplication.update += OnUpdate;
+        }
+
+        static double previousTime = 0.0f;
+        public static void OnUpdate()
+        {
+            var director = TimelineEditor.inspectedDirector;
+
+            // Check if scrubbing
+            var isScrub = director != null && director.playableGraph.IsValid() && !director.playableGraph.IsPlaying() && previousTime != director.time;
+            if (!isScrub) return;
+
+            // Loop each track
+            for (int i = 0; i < director.playableGraph.GetOutputCount(); i++)
+            {
+                // Get track and continue if null
+                var output = director.playableGraph.GetOutput(i);
+                var playable = output.GetSourcePlayable().GetInput(i);
+                var track = output.GetReferenceObject() as TrackAsset;
+                if (track == null) continue;
+
+                // Loop each marker of type INotification
+                var notifications = track.GetMarkers().OfType<Marker>().OfType<INotification>();
+                foreach (var notification in notifications)
+                {
+                    // Push notification if time change in range
+                    double time = (notification as Marker).time;
+                    bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
+                    if (fire) output.PushNotification(playable, notification);
+                }
+            }
+
+            // Record current time
+            previousTime = director.time;
+            // director.Evaluate();
+        }
+
+        public class MethodDesc
+        {
+            public string fullname;
+            public string name;
+            public ParameterType type;
+            public bool isOverload;
+        }
+
+        public static IEnumerable<MethodDesc> CollectSupportedMethods(GameObject gameObject)
+        {
+            if (gameObject == null)
+                return Enumerable.Empty<MethodDesc>();
+
+            var supportedMethods = new List<MethodDesc>();
+            var behaviours = gameObject.GetComponents<MonoBehaviour>();
+
+            foreach (var behaviour in behaviours)
+            {
+                if (behaviour == null)
+                    continue;
+
+                var type = behaviour.GetType();
+                while (type != typeof(MonoBehaviour) && type != null)
+                {
+                    var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                    foreach (var method in methods)
+                    {
+                        var name = method.Name;
+
+                        if (name == "Main" && name == "Start" && name == "Awake" && name == "Update")
+                            continue;
+
+                        var parameters = method.GetParameters();
+                        if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
+
+                        string fullname = null;
+                        ParameterType parameterType = ParameterType.None;
+                        var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
+
+                        if (paramType == null) fullname = name + "()";
+                        else if (paramType == typeof(string)) (parameterType, fullname) = (ParameterType.String, name + "(string)");
+                        else if (paramType == typeof(float)) (parameterType, fullname) = (ParameterType.Float, name + "(float)");
+                        else if (paramType == typeof(int)) (parameterType, fullname) = (ParameterType.Int, name + "(int)");
+                        else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object))) (parameterType, fullname) = (ParameterType.Object, name + "(Object)");
+                        else continue;
+
+                        var supportedMethod = new MethodDesc { fullname = fullname, name = name, type = parameterType };
+
+                        // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
+                        // Only retrieve first found function, but discard overloads.
+                        var existingMethodIndex = supportedMethods.FindIndex(m => m.name == name);
+                        if (existingMethodIndex != -1)
+                        {
+                            // The method is only ambiguous if it has a different signature to the one we saw before
+                            var existingMethod = supportedMethods[existingMethodIndex];
+                            existingMethod.isOverload = existingMethod.type != parameterType;
+                        }
+                        else
+                            supportedMethods.Add(supportedMethod);
+                    }
+                    type = type.BaseType;
+                }
+            }
+
+            return supportedMethods;
+        }
+
+        [CustomEditor(typeof(EventMarker)), CanEditMultipleObjects]
+        public class EventMarkerInspector : Editor
+        {
+            SerializedProperty m_Time;
+            SerializedProperty m_Methods;
+            SerializedProperty m_Retroactive;
+            SerializedProperty m_EmitOnce;
+            SerializedProperty m_EmitInEditor;
+
+            public ReorderableList list;
+            List<MethodDesc> supportedMethods;
+
+            public void OnEnable()
+            {
+                m_Time = serializedObject.FindProperty("m_Time");
+                m_Methods = serializedObject.FindProperty("methods");
+                m_Retroactive = serializedObject.FindProperty("retroactive");
+                m_EmitOnce = serializedObject.FindProperty("emitOnce");
+                m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
+            }
+
+            public override void OnInspectorGUI()
+            {
+                serializedObject.Update();
+
+                var marker = target as Marker;
+                var parent = marker.parent;
+                var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(parent);
+
+                var changeScope = new EditorGUI.ChangeCheckScope();
+                EditorGUILayout.PropertyField(m_Time);
+
+                supportedMethods = CollectSupportedMethods(GetGameObject(boundObj)).ToList();
+
+                list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
+                {
+                    drawElementCallback = DrawMethodAndArguments,
+                    drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "Method"); }
+                };
+                list.DoLayoutList();
+
+                EditorGUILayout.PropertyField(m_Retroactive);
+                EditorGUILayout.PropertyField(m_EmitOnce);
+                EditorGUILayout.PropertyField(m_EmitInEditor);
+
+                if (changeScope.changed)
+                    serializedObject.ApplyModifiedProperties();
+            }
+
+            void DrawMethodAndArguments(Rect rect, int index, bool isActive, bool isFocused)
+            {
+                SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+                SerializedProperty m_Method = element.FindPropertyRelative("name");
+
+                var dropdown = supportedMethods.Select(i => i.fullname).ToList();
+                dropdown.Add("No method");
+
+                var selectedMethodId = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
+                if (selectedMethodId == -1)
+                    selectedMethodId = supportedMethods.Count;
+
+                var previousMixedValue = EditorGUI.showMixedValue;
+                {
+                    if (m_Method.hasMultipleDifferentValues)
+                        EditorGUI.showMixedValue = true;
+                    selectedMethodId = EditorGUI.Popup(new Rect(rect.x, rect.y, 200, EditorGUIUtility.singleLineHeight),
+                                                       selectedMethodId, dropdown.ToArray());
+                }
+
+                rect = new Rect(rect.x + 220, rect.y, 200, EditorGUIUtility.singleLineHeight);
+
+                EditorGUI.showMixedValue = previousMixedValue;
+
+                if (selectedMethodId < supportedMethods.Count)
+                {
+                    var method = supportedMethods.ElementAt(selectedMethodId);
+                    m_Method.stringValue = method.name;
+                    DrawArguments(rect, element, method);
+                    if (supportedMethods.Any(i => i.isOverload == true))
+                        EditorGUI.HelpBox(rect, "Some functions were overloaded in MonoBehaviour components and may not work as intended if used with Animation Events!", MessageType.Warning);
+                }
+                else
+                    EditorGUI.HelpBox(rect, "Method is not valid", MessageType.Warning);
+            }
+
+            static GameObject GetGameObject(UnityEngine.Object obj)
+            {
+                if (obj as GameObject != null)
+                    return (GameObject)obj;
+                if (obj as UnityEngine.Component != null)
+                    return ((UnityEngine.Component)obj).gameObject;
+                return null;
+            }
+
+            void DrawArguments(Rect rect, SerializedProperty element, MethodDesc method)
+            {
+                SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
+                m_ArgumentType.enumValueIndex = (int)method.type;
+                switch (method.type)
+                {
+                    case ParameterType.Int:
+                        SerializedProperty m_IntArg = element.FindPropertyRelative("Int");
+                        EditorGUI.PropertyField(rect, m_IntArg, GUIContent.none);
+                        break;
+                    case ParameterType.Float:
+                        SerializedProperty m_FloatArg = element.FindPropertyRelative("Float");
+                        EditorGUI.PropertyField(rect, m_FloatArg, GUIContent.none);
+                        break;
+                    case ParameterType.Object:
+                        SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
+                        EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
+                        break;
+                    case ParameterType.String:
+                        SerializedProperty m_StringArg = element.FindPropertyRelative("String");
+                        EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
+                        break;
+                    default:
+                    case ParameterType.None: break;
+                }
+            }
         }
     }
 }

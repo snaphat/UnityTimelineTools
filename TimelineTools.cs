@@ -192,10 +192,9 @@ namespace TimelineTools
             enabled = !enabled;
             Menu.SetChecked(menuPath, enabled);
 
+            // Remove and add update callback
             EditorApplication.update -= OnUpdate;
-
-            if (enabled)
-                EditorApplication.update += OnUpdate;
+            if (enabled) EditorApplication.update += OnUpdate;
         }
 
         private static void OnUpdate()
@@ -225,8 +224,10 @@ namespace TimelineTools
         }
     }
 
+    // Adds Editor support for Timeline Event Markers for calling GameObject methods
     public partial class Events
     {
+        // Add event handler for detecting timeline marker events during timeline preview scrubbing
         [InitializeOnLoadMethod]
         public static void OnLoad()
         {
@@ -234,6 +235,7 @@ namespace TimelineTools
             EditorApplication.update += OnUpdate;
         }
 
+        // Handle pushing marker event notifications for timeline preview scrubbing
         static double previousTime = 0.0f;
         public static void OnUpdate()
         {
@@ -265,17 +267,18 @@ namespace TimelineTools
 
             // Record current time
             previousTime = director.time;
-            // director.Evaluate();
         }
 
+        // For storing parased method information in the editor
         public class MethodDesc
         {
-            public string fullname;
-            public string name;
-            public ParameterType type;
-            public bool isOverload;
+            public string fullname;    // Foo(arg_type)
+            public string name;        // Foo
+            public ParameterType type; // None, int, float, string, Object
+            public bool isOverload;    // Overloads not handable so need detection
         }
 
+        // Helper method for retrieving method signatures from a game object
         public static IEnumerable<MethodDesc> CollectSupportedMethods(GameObject gameObject)
         {
             if (gameObject == null)
@@ -303,17 +306,22 @@ namespace TimelineTools
                         var parameters = method.GetParameters();
                         if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
 
+                        // Parse parameter type and create fullname
                         string fullname = null;
                         ParameterType parameterType = ParameterType.None;
                         var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
-
                         if (paramType == null) fullname = name + "()";
-                        else if (paramType == typeof(string)) (parameterType, fullname) = (ParameterType.String, name + "(string)");
-                        else if (paramType == typeof(float)) (parameterType, fullname) = (ParameterType.Float, name + "(float)");
-                        else if (paramType == typeof(int)) (parameterType, fullname) = (ParameterType.Int, name + "(int)");
-                        else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object))) (parameterType, fullname) = (ParameterType.Object, name + "(Object)");
+                        else if (paramType == typeof(string))
+                            (parameterType, fullname) = (ParameterType.String, name + "(string)");
+                        else if (paramType == typeof(float))
+                            (parameterType, fullname) = (ParameterType.Float, name + "(float)");
+                        else if (paramType == typeof(int))
+                            (parameterType, fullname) = (ParameterType.Int, name + "(int)");
+                        else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object)))
+                            (parameterType, fullname) = (ParameterType.Object, name + "(Object)");
                         else continue;
 
+                        // Create method description object
                         var supportedMethod = new MethodDesc { fullname = fullname, name = name, type = parameterType };
 
                         // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
@@ -335,6 +343,7 @@ namespace TimelineTools
             return supportedMethods;
         }
 
+        // Custom Inspector for creating EventMarkers
         [CustomEditor(typeof(EventMarker)), CanEditMultipleObjects]
         public class EventMarkerInspector : Editor
         {
@@ -347,6 +356,7 @@ namespace TimelineTools
             public ReorderableList list;
             List<MethodDesc> supportedMethods;
 
+            // Get serialized object properties (for UI)
             public void OnEnable()
             {
                 m_Time = serializedObject.FindProperty("m_Time");
@@ -356,6 +366,7 @@ namespace TimelineTools
                 m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
             }
 
+            // Draw inspector GUI
             public override void OnInspectorGUI()
             {
                 serializedObject.Update();
@@ -367,7 +378,11 @@ namespace TimelineTools
                 var changeScope = new EditorGUI.ChangeCheckScope();
                 EditorGUILayout.PropertyField(m_Time);
 
-                supportedMethods = CollectSupportedMethods(GetGameObject(boundObj)).ToList();
+                GameObject gameObject = null;
+                if (boundObj as GameObject != null) gameObject = (GameObject)boundObj;
+                else if (boundObj as Component != null) gameObject = ((Component)boundObj).gameObject;
+
+                supportedMethods = CollectSupportedMethods(gameObject).ToList();
 
                 list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
                 {
@@ -384,18 +399,25 @@ namespace TimelineTools
                     serializedObject.ApplyModifiedProperties();
             }
 
+            // Draw drawer entry for given element
             void DrawMethodAndArguments(Rect rect, int index, bool isActive, bool isFocused)
             {
+                // Retrieve element (elements are added when + is clicked in reorderable list UI)
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+
+                // Retrieve name for element
                 SerializedProperty m_Method = element.FindPropertyRelative("name");
 
+                // Create dropdown list
                 var dropdown = supportedMethods.Select(i => i.fullname).ToList();
                 dropdown.Add("No method");
 
+                // Get current method ID based off of stored name (index really)
                 var selectedMethodId = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
                 if (selectedMethodId == -1)
                     selectedMethodId = supportedMethods.Count;
 
+                // Draw popup (dropdown box)
                 var previousMixedValue = EditorGUI.showMixedValue;
                 {
                     if (m_Method.hasMultipleDifferentValues)
@@ -408,6 +430,7 @@ namespace TimelineTools
 
                 EditorGUI.showMixedValue = previousMixedValue;
 
+                // If perform checks and if method valid draw arguments
                 if (selectedMethodId < supportedMethods.Count)
                 {
                     var method = supportedMethods.ElementAt(selectedMethodId);
@@ -416,43 +439,35 @@ namespace TimelineTools
                     if (supportedMethods.Any(i => i.isOverload == true))
                         EditorGUI.HelpBox(rect, "Some functions were overloaded in MonoBehaviour components and may not work as intended if used with Animation Events!", MessageType.Warning);
                 }
-                else
-                    EditorGUI.HelpBox(rect, "Method is not valid", MessageType.Warning);
+                else EditorGUI.HelpBox(rect, "Method is not valid", MessageType.Warning);
             }
 
-            static GameObject GetGameObject(UnityEngine.Object obj)
-            {
-                if (obj as GameObject != null)
-                    return (GameObject)obj;
-                if (obj as UnityEngine.Component != null)
-                    return ((UnityEngine.Component)obj).gameObject;
-                return null;
-            }
-
+            // Create UI elements for the given parameter type
             void DrawArguments(Rect rect, SerializedProperty element, MethodDesc method)
             {
                 SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
                 m_ArgumentType.enumValueIndex = (int)method.type;
-                switch (method.type)
+
+                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                if (method.type == ParameterType.Int)
                 {
-                    case ParameterType.Int:
-                        SerializedProperty m_IntArg = element.FindPropertyRelative("Int");
-                        EditorGUI.PropertyField(rect, m_IntArg, GUIContent.none);
-                        break;
-                    case ParameterType.Float:
-                        SerializedProperty m_FloatArg = element.FindPropertyRelative("Float");
-                        EditorGUI.PropertyField(rect, m_FloatArg, GUIContent.none);
-                        break;
-                    case ParameterType.Object:
-                        SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
-                        EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
-                        break;
-                    case ParameterType.String:
-                        SerializedProperty m_StringArg = element.FindPropertyRelative("String");
-                        EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
-                        break;
-                    default:
-                    case ParameterType.None: break;
+                    SerializedProperty m_IntArg = element.FindPropertyRelative("Int");
+                    EditorGUI.PropertyField(rect, m_IntArg, GUIContent.none);
+                }
+                else if (method.type == ParameterType.Float)
+                {
+                    SerializedProperty m_FloatArg = element.FindPropertyRelative("Float");
+                    EditorGUI.PropertyField(rect, m_FloatArg, GUIContent.none);
+                }
+                else if (method.type == ParameterType.Object)
+                {
+                    SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
+                    EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
+                }
+                else if (method.type == ParameterType.String)
+                {
+                    SerializedProperty m_StringArg = element.FindPropertyRelative("String");
+                    EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
                 }
             }
         }

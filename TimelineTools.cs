@@ -190,10 +190,10 @@ public class TimelineTools
             enabled = !enabled;
             Menu.SetChecked(menuPath, enabled);
 
+            EditorApplication.update -= OnUpdate;
+
             if (enabled)
                 EditorApplication.update += OnUpdate;
-            else
-                EditorApplication.update -= OnUpdate;
         }
 
         private static void OnUpdate()

@@ -357,6 +357,7 @@ namespace TimelineTools
             SerializedProperty m_Retroactive;
             SerializedProperty m_EmitOnce;
             SerializedProperty m_EmitInEditor;
+            SerializedProperty m_Tooltip;
             SerializedProperty m_Color;
             SerializedProperty m_ShowLineOverlay;
 
@@ -367,7 +368,6 @@ namespace TimelineTools
             List<string> fullNames;
             List<string> richNames;
             float dropDownComputedSize;
-            static string tooltip = "";
 
             // Get serialized object properties (for UI)
             public void OnEnable()
@@ -380,6 +380,7 @@ namespace TimelineTools
                 m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
 
                 // Style properties
+                m_Tooltip = serializedObject.FindProperty("tooltip");
                 m_Color = serializedObject.FindProperty("color");
                 m_ShowLineOverlay = serializedObject.FindProperty("showLineOverlay");
             }
@@ -434,7 +435,7 @@ namespace TimelineTools
                 }
 
                 var longestMethodName = "";
-                tooltip = "";
+                var tooltip = "";
                 for (int i = 0; i < list.serializedProperty.arraySize; i++)
                 {
                     SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
@@ -446,6 +447,7 @@ namespace TimelineTools
                     tooltip += richName;
                     if (longestMethodName.Length < fullName.Length) longestMethodName = fullName;
                 }
+                m_Tooltip.stringValue = tooltip; // store tooltip for this marker
 
                 GUIContent content = new(longestMethodName);
                 GUIStyle style = EditorStyles.popup;
@@ -456,8 +458,7 @@ namespace TimelineTools
 
                 list.DoLayoutList();
 
-                if (changeScope.changed)
-                    serializedObject.ApplyModifiedProperties();
+                serializedObject.ApplyModifiedProperties();
             }
 
             // Draw drawer entry for given element
@@ -562,10 +563,10 @@ namespace TimelineTools
                 public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
                 {
                     // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
-                    EventMarker annotation = marker as EventMarker;
-                    if (annotation == null) return base.GetMarkerOptions(marker);
+                    var eventMarker = marker as EventMarker;
+                    if (eventMarker == null) return base.GetMarkerOptions(marker);
 
-                    return new MarkerDrawOptions { tooltip = tooltip };
+                    return new MarkerDrawOptions { tooltip = eventMarker.tooltip };
                 }
 
                 static void DrawLineOverlay(Color color, MarkerOverlayRegion region)

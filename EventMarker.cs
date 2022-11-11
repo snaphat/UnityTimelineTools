@@ -37,6 +37,7 @@ namespace TimelineTools
             public bool retroactive;
             public bool emitOnce;
             public bool emitInEditor;
+            public string tooltip;
             public Color color = new(1.0f, 1.0f, 1.0f, 0.5f);
             public bool showLineOverlay = true;
 

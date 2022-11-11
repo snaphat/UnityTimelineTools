@@ -360,6 +360,8 @@ namespace TimelineTools
             SerializedProperty m_Color;
             SerializedProperty m_ShowLineOverlay;
 
+            GameObject storedGameObject;
+
             ReorderableList list;
             List<MethodDesc> supportedMethods;
             List<string> fullNames;
@@ -409,21 +411,27 @@ namespace TimelineTools
                 EditorGUILayout.PropertyField(m_ShowLineOverlay);
 
                 EditorGUILayout.Space();
-                GameObject gameObject = null;
-                if (boundObj as GameObject != null) gameObject = (GameObject)boundObj;
-                else if (boundObj as Component != null) gameObject = ((Component)boundObj).gameObject;
 
-                supportedMethods = CollectSupportedMethods(gameObject).ToList();
-                fullNames = supportedMethods.Select(i => i.fullName).ToList();
-                fullNames.Add("No method");
-                richNames = supportedMethods.Select(i => i.richName).ToList();
-                richNames.Add("No method");
+                GameObject curGameObject = null;
+                if (boundObj as GameObject != null) curGameObject = (GameObject)boundObj;
+                else if (boundObj as Component != null) curGameObject = ((Component)boundObj).gameObject;
 
-                list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
+                // Only rebuild list if something as changed (it isn't draggable otherwise)
+                if (list == null || storedGameObject != curGameObject)
                 {
-                    drawElementCallback = DrawMethodAndArguments,
-                    drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
-                };
+                    storedGameObject = curGameObject;
+                    supportedMethods = CollectSupportedMethods(storedGameObject).ToList();
+                    fullNames = supportedMethods.Select(i => i.fullName).ToList();
+                    fullNames.Add("No method");
+                    richNames = supportedMethods.Select(i => i.richName).ToList();
+                    richNames.Add("No method");
+
+                    list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
+                    {
+                        drawElementCallback = DrawMethodAndArguments,
+                        drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
+                    };
+                }
 
                 var longestMethodName = "";
                 tooltip = "";

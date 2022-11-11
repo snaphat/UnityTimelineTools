@@ -528,84 +528,84 @@ namespace TimelineTools
                     EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
                 }
             }
+        }
 
-            // Editor used by the Timeline window to customize the appearance of an TestMarker
-            [CustomTimelineEditor(typeof(EventMarker))]//dd
-            public class EventMarkerOverlay : MarkerEditor
+        // Editor used by the Timeline window to customize the appearance of an TestMarker
+        [CustomTimelineEditor(typeof(EventMarker))]//dd
+        public class EventMarkerOverlay : MarkerEditor
+        {
+            const float k_LineOverlayWidth = 6.0f;
+
+            const string k_OverlayPath = "EventMarker";
+            const string k_OverlayCollapsedPath = "EventMarker_Collapsed";
+
+            static readonly Texture2D s_OverlayTexture;
+            static readonly Texture2D s_OverlayCollapsedTexture;
+
+            static EventMarkerOverlay()
             {
-                const float k_LineOverlayWidth = 6.0f;
+                s_OverlayTexture = Resources.Load<Texture2D>(k_OverlayPath);
+                s_OverlayCollapsedTexture = Resources.Load<Texture2D>(k_OverlayCollapsedPath);
+            }
 
-                const string k_OverlayPath = "EventMarker";
-                const string k_OverlayCollapsedPath = "EventMarker_Collapsed";
+            // Draws a vertical line on top of the Timeline window's contents.
+            public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
+            {
+                // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
+                EventMarker annotation = marker as EventMarker;
+                if (annotation == null) return;
 
-                static readonly Texture2D s_OverlayTexture;
-                static readonly Texture2D s_OverlayCollapsedTexture;
+                if (annotation.showLineOverlay) DrawLineOverlay(annotation.color, region);
 
-                static EventMarkerOverlay()
+                DrawColorOverlay(region, annotation.color, uiState);
+            }
+
+            // Sets the marker's tooltip based on its title.
+            public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
+            {
+                // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
+                var eventMarker = marker as EventMarker;
+                if (eventMarker == null) return base.GetMarkerOptions(marker);
+
+                return new MarkerDrawOptions { tooltip = eventMarker.tooltip };
+            }
+
+            static void DrawLineOverlay(Color color, MarkerOverlayRegion region)
+            {
+                // Calculate markerRegion's center on the x axis
+                float markerRegionCenterX = region.markerRegion.xMin + (region.markerRegion.width - k_LineOverlayWidth) / 2.0f;
+
+                // Calculate a rectangle that uses the full timeline region's height
+                Rect overlayLineRect = new(markerRegionCenterX, region.timelineRegion.y, k_LineOverlayWidth, region.timelineRegion.height);
+
+                Color overlayLineColor = new(color.r, color.g, color.b, color.a * 0.5f);
+                EditorGUI.DrawRect(overlayLineRect, overlayLineColor);
+            }
+
+            static void DrawColorOverlay(MarkerOverlayRegion region, Color color, MarkerUIStates state)
+            {
+                // Save the Editor's overlay color before changing it
+                Color oldColor = GUI.color;
+
+
+                if (state.HasFlag(MarkerUIStates.Selected))
                 {
-                    s_OverlayTexture = Resources.Load<Texture2D>(k_OverlayPath);
-                    s_OverlayCollapsedTexture = Resources.Load<Texture2D>(k_OverlayCollapsedPath);
+                    GUI.color = new(1.0f - color.r, 1.0f - color.g, 1.0f - color.b, color.a * 1.1f);
+                    GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                }
+                else if (state.HasFlag(MarkerUIStates.Collapsed))
+                {
+                    GUI.color = color;
+                    GUI.DrawTexture(region.markerRegion, s_OverlayCollapsedTexture);
+                }
+                else if (state.HasFlag(MarkerUIStates.None))
+                {
+                    GUI.color = color;
+                    GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
                 }
 
-                // Draws a vertical line on top of the Timeline window's contents.
-                public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
-                {
-                    // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
-                    EventMarker annotation = marker as EventMarker;
-                    if (annotation == null) return;
-
-                    if (annotation.showLineOverlay) DrawLineOverlay(annotation.color, region);
-
-                    DrawColorOverlay(region, annotation.color, uiState);
-                }
-
-                // Sets the marker's tooltip based on its title.
-                public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
-                {
-                    // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
-                    var eventMarker = marker as EventMarker;
-                    if (eventMarker == null) return base.GetMarkerOptions(marker);
-
-                    return new MarkerDrawOptions { tooltip = eventMarker.tooltip };
-                }
-
-                static void DrawLineOverlay(Color color, MarkerOverlayRegion region)
-                {
-                    // Calculate markerRegion's center on the x axis
-                    float markerRegionCenterX = region.markerRegion.xMin + (region.markerRegion.width - k_LineOverlayWidth) / 2.0f;
-
-                    // Calculate a rectangle that uses the full timeline region's height
-                    Rect overlayLineRect = new(markerRegionCenterX, region.timelineRegion.y, k_LineOverlayWidth, region.timelineRegion.height);
-
-                    Color overlayLineColor = new(color.r, color.g, color.b, color.a * 0.5f);
-                    EditorGUI.DrawRect(overlayLineRect, overlayLineColor);
-                }
-
-                static void DrawColorOverlay(MarkerOverlayRegion region, Color color, MarkerUIStates state)
-                {
-                    // Save the Editor's overlay color before changing it
-                    Color oldColor = GUI.color;
-
-
-                    if (state.HasFlag(MarkerUIStates.Selected))
-                    {
-                        GUI.color = new(1.0f - color.r, 1.0f - color.g, 1.0f - color.b, color.a * 1.1f);
-                        GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
-                    }
-                    else if (state.HasFlag(MarkerUIStates.Collapsed))
-                    {
-                        GUI.color = color;
-                        GUI.DrawTexture(region.markerRegion, s_OverlayCollapsedTexture);
-                    }
-                    else if (state.HasFlag(MarkerUIStates.None))
-                    {
-                        GUI.color = color;
-                        GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
-                    }
-
-                    // Restore the previous Editor's overlay color
-                    GUI.color = oldColor;
-                }
+                // Restore the previous Editor's overlay color
+                GUI.color = oldColor;
             }
         }
     }

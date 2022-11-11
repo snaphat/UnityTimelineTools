@@ -7,7 +7,7 @@ using Object = UnityEngine.Object;
 
 namespace TimelineTools
 {
-    public partial class Events
+    namespace Events
     {
         public enum ParameterType
         {
@@ -31,7 +31,7 @@ namespace TimelineTools
 
         [CustomStyle("EventMarkerStyle")]
         [Serializable, DisplayName("Event Marker")]
-        public class EventMarker : Marker, INotification, INotificationOptionProvider
+        public class EventMarkerNotification : Marker, INotification, INotificationOptionProvider
         {
             public Method[] methods;
             public bool retroactive;

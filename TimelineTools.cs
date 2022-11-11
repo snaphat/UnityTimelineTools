@@ -225,48 +225,51 @@ namespace TimelineTools
     }
 
     // Adds Editor support for Timeline Event Markers for calling GameObject methods
-    public partial class Events
+    namespace Events
     {
-        // Add event handler for detecting timeline marker events during timeline preview scrubbing
-        [InitializeOnLoadMethod]
-        public static void OnLoad()
+        // Add event handler for detecting timeline marker events during timeline preview scrubbing - fixes scrubbing not calling events
+        public class TimelineEditorEventHandler
         {
-            EditorApplication.update -= OnUpdate;
-            EditorApplication.update += OnUpdate;
-        }
-
-        // Handle pushing marker event notifications for timeline preview scrubbing
-        static double previousTime = 0.0f;
-        public static void OnUpdate()
-        {
-            var director = TimelineEditor.inspectedDirector;
-
-            // Check if scrubbing
-            var isScrub = director != null && director.playableGraph.IsValid() && !director.playableGraph.IsPlaying() && previousTime != director.time;
-            if (!isScrub) return;
-
-            // Loop each track
-            for (int i = 0; i < director.playableGraph.GetOutputCount(); i++)
+            [InitializeOnLoadMethod]
+            public static void OnLoad()
             {
-                // Get track and continue if null
-                var output = director.playableGraph.GetOutput(i);
-                var playable = output.GetSourcePlayable().GetInput(i);
-                var track = output.GetReferenceObject() as TrackAsset;
-                if (track == null) continue;
-
-                // Loop each marker of type INotification
-                var notifications = track.GetMarkers().OfType<Marker>().OfType<INotification>();
-                foreach (var notification in notifications)
-                {
-                    // Push notification if time change in range
-                    double time = (notification as Marker).time;
-                    bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
-                    if (fire) output.PushNotification(playable, notification);
-                }
+                EditorApplication.update -= OnUpdate;
+                EditorApplication.update += OnUpdate;
             }
 
-            // Record current time
-            previousTime = director.time;
+            // Handle pushing marker event notifications for timeline preview scrubbing
+            static double previousTime = 0.0f;
+            public static void OnUpdate()
+            {
+                var director = TimelineEditor.inspectedDirector;
+
+                // Check if scrubbing
+                var isScrub = director != null && director.playableGraph.IsValid() && !director.playableGraph.IsPlaying() && previousTime != director.time;
+                if (!isScrub) return;
+
+                // Loop each track
+                for (int i = 0; i < director.playableGraph.GetOutputCount(); i++)
+                {
+                    // Get track and continue if null
+                    var output = director.playableGraph.GetOutput(i);
+                    var playable = output.GetSourcePlayable().GetInput(i);
+                    var track = output.GetReferenceObject() as TrackAsset;
+                    if (track == null) continue;
+
+                    // Loop each marker of type INotification
+                    var notifications = track.GetMarkers().OfType<Marker>().OfType<INotification>();
+                    foreach (var notification in notifications)
+                    {
+                        // Push notification if time change in range
+                        double time = (notification as Marker).time;
+                        bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
+                        if (fire) output.PushNotification(playable, notification);
+                    }
+                }
+
+                // Record current time
+                previousTime = director.time;
+            }
         }
 
         // For storing parased method information in the editor
@@ -277,75 +280,6 @@ namespace TimelineTools
             public string richName;     // Foo(arg_type)
             public ParameterType type;  // None, int, float, string, Object
             public bool isOverload;     // Overloads not handable so need detection
-        }
-
-        // Helper method for retrieving method signatures from a game object
-        public static IEnumerable<MethodDesc> CollectSupportedMethods(GameObject gameObject)
-        {
-            if (gameObject == null)
-                return Enumerable.Empty<MethodDesc>();
-
-            List<MethodDesc> supportedMethods = new();
-            var behaviours = gameObject.GetComponents<MonoBehaviour>();
-
-            foreach (var behaviour in behaviours)
-            {
-                if (behaviour == null)
-                    continue;
-
-                var type = behaviour.GetType();
-                while (type != typeof(MonoBehaviour) && type != null)
-                {
-                    var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
-                    foreach (var method in methods)
-                    {
-                        var name = method.Name;
-
-                        if (name == "Main" && name == "Start" && name == "Awake" && name == "Update")
-                            continue;
-
-                        var parameters = method.GetParameters();
-                        if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
-
-                        // Parse parameter type and create fullname
-                        string richFormat = EditorGUIUtility.isProSkin ?
-                        "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>" :
-                        "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>";
-                        string fullName = null, richName = null;
-                        ParameterType parameterType = ParameterType.None;
-                        var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
-                        if (paramType == null)
-                            (fullName, richName) = (name + "()", string.Format(richFormat, name, ""));
-                        else if (paramType == typeof(string))
-                            (parameterType, fullName, richName) = (ParameterType.String, name + "(string)", string.Format(richFormat, name, "string"));
-                        else if (paramType == typeof(float))
-                            (parameterType, fullName, richName) = (ParameterType.Float, name + "(float)", string.Format(richFormat, name, "float"));
-                        else if (paramType == typeof(int))
-                            (parameterType, fullName, richName) = (ParameterType.Int, name + "(int)", string.Format(richFormat, name, "int"));
-                        else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object)))
-                            (parameterType, fullName, richName) = (ParameterType.Object, name + "(Object)", string.Format(richFormat, name, "Object"));
-                        else continue;
-
-                        // Create method description object
-                        var supportedMethod = new MethodDesc { name = name, fullName = fullName, richName = richName, type = parameterType };
-
-                        // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
-                        // Only retrieve first found function, but discard overloads.
-                        var existingMethodIndex = supportedMethods.FindIndex(m => m.name == name);
-                        if (existingMethodIndex != -1)
-                        {
-                            // The method is only ambiguous if it has a different signature to the one we saw before
-                            var existingMethod = supportedMethods[existingMethodIndex];
-                            existingMethod.isOverload = existingMethod.type != parameterType;
-                        }
-                        else
-                            supportedMethods.Add(supportedMethod);
-                    }
-                    type = type.BaseType;
-                }
-            }
-
-            return supportedMethods;
         }
 
         // Custom Inspector for creating EventMarkers
@@ -528,10 +462,79 @@ namespace TimelineTools
                     EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
                 }
             }
+
+            // Helper method for retrieving method signatures from a game object
+            public static IEnumerable<MethodDesc> CollectSupportedMethods(GameObject gameObject)
+            {
+                if (gameObject == null)
+                    return Enumerable.Empty<MethodDesc>();
+
+                List<MethodDesc> supportedMethods = new();
+                var behaviours = gameObject.GetComponents<MonoBehaviour>();
+
+                foreach (var behaviour in behaviours)
+                {
+                    if (behaviour == null)
+                        continue;
+
+                    var type = behaviour.GetType();
+                    while (type != typeof(MonoBehaviour) && type != null)
+                    {
+                        var methods = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        foreach (var method in methods)
+                        {
+                            var name = method.Name;
+
+                            if (name == "Main" && name == "Start" && name == "Awake" && name == "Update")
+                                continue;
+
+                            var parameters = method.GetParameters();
+                            if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
+
+                            // Parse parameter type and create fullname
+                            string richFormat = EditorGUIUtility.isProSkin ?
+                            "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>" :
+                            "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>";
+                            string fullName = null, richName = null;
+                            ParameterType parameterType = ParameterType.None;
+                            var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
+                            if (paramType == null)
+                                (fullName, richName) = (name + "()", string.Format(richFormat, name, ""));
+                            else if (paramType == typeof(string))
+                                (parameterType, fullName, richName) = (ParameterType.String, name + "(string)", string.Format(richFormat, name, "string"));
+                            else if (paramType == typeof(float))
+                                (parameterType, fullName, richName) = (ParameterType.Float, name + "(float)", string.Format(richFormat, name, "float"));
+                            else if (paramType == typeof(int))
+                                (parameterType, fullName, richName) = (ParameterType.Int, name + "(int)", string.Format(richFormat, name, "int"));
+                            else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object)))
+                                (parameterType, fullName, richName) = (ParameterType.Object, name + "(Object)", string.Format(richFormat, name, "Object"));
+                            else continue;
+
+                            // Create method description object
+                            var supportedMethod = new MethodDesc { name = name, fullName = fullName, richName = richName, type = parameterType };
+
+                            // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
+                            // Only retrieve first found function, but discard overloads.
+                            var existingMethodIndex = supportedMethods.FindIndex(m => m.name == name);
+                            if (existingMethodIndex != -1)
+                            {
+                                // The method is only ambiguous if it has a different signature to the one we saw before
+                                var existingMethod = supportedMethods[existingMethodIndex];
+                                existingMethod.isOverload = existingMethod.type != parameterType;
+                            }
+                            else
+                                supportedMethods.Add(supportedMethod);
+                        }
+                        type = type.BaseType;
+                    }
+                }
+
+                return supportedMethods;
+            }
         }
 
         // Editor used by the Timeline window to customize the appearance of an TestMarker
-        [CustomTimelineEditor(typeof(EventMarker))]//dd
+        [CustomTimelineEditor(typeof(EventMarkerNotification))]//dd
         public class EventMarkerOverlay : MarkerEditor
         {
             const float k_LineOverlayWidth = 6.0f;
@@ -552,7 +555,7 @@ namespace TimelineTools
             public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
             {
                 // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
-                EventMarker annotation = marker as EventMarker;
+                var annotation = marker as EventMarkerNotification;
                 if (annotation == null) return;
 
                 if (annotation.showLineOverlay) DrawLineOverlay(annotation.color, region);
@@ -564,7 +567,7 @@ namespace TimelineTools
             public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
             {
                 // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
-                var eventMarker = marker as EventMarker;
+                var eventMarker = marker as EventMarkerNotification;
                 if (eventMarker == null) return base.GetMarkerOptions(marker);
 
                 return new MarkerDrawOptions { tooltip = eventMarker.tooltip };

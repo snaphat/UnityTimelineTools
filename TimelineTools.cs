@@ -257,13 +257,16 @@ namespace TimelineTools
                     if (track == null) continue;
 
                     // Loop each marker of type INotification
-                    var notifications = track.GetMarkers().OfType<Marker>().OfType<INotification>();
+                    var notifications = track.GetMarkers().OfType<Marker>().OfType<EventMarkerNotification>();
                     foreach (var notification in notifications)
                     {
-                        // Push notification if time change in range
-                        double time = (notification as Marker).time;
-                        bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
-                        if (fire) output.PushNotification(playable, notification);
+                        if (notification.emitInEditor)
+                        {
+                            // Push notification if time change in range
+                            double time = (notification as Marker).time;
+                            bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
+                            if (fire) output.PushNotification(playable, notification);
+                        }
                     }
                 }
 

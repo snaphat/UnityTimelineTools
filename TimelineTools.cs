@@ -283,7 +283,7 @@ namespace TimelineTools
         }
 
         // Custom Inspector for creating EventMarkers
-        [CustomEditor(typeof(EventMarker)), CanEditMultipleObjects]
+        [CustomEditor(typeof(EventMarkerNotification)), CanEditMultipleObjects]
         public class EventMarkerInspector : Editor
         {
             SerializedProperty m_Time;
@@ -326,6 +326,8 @@ namespace TimelineTools
 
                 var marker = target as Marker;
                 var parent = marker.parent;
+                if (marker.parent == null) return; // In case of looking at timeline asset directly.
+
                 var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(parent);
 
                 var changeScope = new EditorGUI.ChangeCheckScope();
@@ -534,7 +536,7 @@ namespace TimelineTools
         }
 
         // Editor used by the Timeline window to customize the appearance of an TestMarker
-        [CustomTimelineEditor(typeof(EventMarkerNotification))]//dd
+        [CustomTimelineEditor(typeof(EventMarkerNotification))]
         public class EventMarkerOverlay : MarkerEditor
         {
             const float k_LineOverlayWidth = 6.0f;

@@ -19,7 +19,7 @@ namespace TimelineTools
         }
 
         [Serializable]
-        public struct Method
+        public class Method
         {
             public string name;
             public ParameterType parameterType;
@@ -27,9 +27,9 @@ namespace TimelineTools
             public string String;
             public float Float;
             public ExposedReference<Object> Object;
-
         }
 
+        [CustomStyle("EventMarkerStyle")]
         [Serializable, DisplayName("Event Marker")]
         public class EventMarker : Marker, INotification, INotificationOptionProvider
         {
@@ -37,6 +37,8 @@ namespace TimelineTools
             public bool retroactive;
             public bool emitOnce;
             public bool emitInEditor;
+            public Color color = new(1.0f, 1.0f, 1.0f, 0.5f);
+            public bool showLineOverlay = true;
 
             PropertyName INotification.id { get { return new PropertyName(); } }
 

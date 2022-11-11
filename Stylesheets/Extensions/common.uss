@@ -1,0 +1,26 @@
+
+/* Custom USS stylesheet. */
+
+.EventMarkerStyle
+{
+    width:18px;
+    height:18px;
+}
+
+/* A marker will use the default style when it is collapsed.*/
+.EventMarkerStyle
+{
+    background-image: resource("EventMarker_Collapsed");
+}
+
+/* A marker will use the hover:focus:checked pseudo-state when it is selected.*/
+.EventMarkerStyle:hover:checked
+{
+    background-image: resource("EventMarker");
+}
+
+/* A marker will use this style when it is not selected and not collapsed.*/
+.EventMarkerStyle:checked
+{
+    background-image: resource("EventMarker");
+}

@@ -72,7 +72,7 @@ namespace TimelineTools
         [Frames(-100)][MenuEntry(MenuPath_Cut_100, 7)] class Cut_100 : Action<Cut_100> { [MenuItem(MenuPath_Cut_100, priority = 7)] public static void F() { Insert(); } };
 
         // Undo group name
-        static readonly String undoKey = "Insert Frames";
+        static readonly string undoKey = "Insert Frames";
 
         private static void Insert(float frames)
         {
@@ -112,7 +112,7 @@ namespace TimelineTools
                 var amount = frames / clip.frameRate;
 
                 // Update events in clip: insert/cut time by amount.
-                var updatedEvents = new List<AnimationEvent>();
+                List<AnimationEvent> updatedEvents = new();
                 foreach (var evnt in clip.events)
                 {
                     if (evnt.time > currentTime) evnt.time += amount;
@@ -216,7 +216,7 @@ namespace TimelineTools
             if (SetShownHRangeInsideMargins == null) return;
 
             // Call Range Updater on Animation view
-            object[] parametersArray = new object[] { visibleTimeRange.x, visibleTimeRange.y };
+            var parametersArray = new object[] { visibleTimeRange.x, visibleTimeRange.y };
             SetShownHRangeInsideMargins.Invoke(m_TimeArea, parametersArray);
 
             // Force repaint
@@ -272,10 +272,11 @@ namespace TimelineTools
         // For storing parased method information in the editor
         public class MethodDesc
         {
-            public string fullname;    // Foo(arg_type)
-            public string name;        // Foo
-            public ParameterType type; // None, int, float, string, Object
-            public bool isOverload;    // Overloads not handable so need detection
+            public string name;         // Foo
+            public string fullName;     // Foo(arg_type)
+            public string richName;     // Foo(arg_type)
+            public ParameterType type;  // None, int, float, string, Object
+            public bool isOverload;     // Overloads not handable so need detection
         }
 
         // Helper method for retrieving method signatures from a game object
@@ -284,7 +285,7 @@ namespace TimelineTools
             if (gameObject == null)
                 return Enumerable.Empty<MethodDesc>();
 
-            var supportedMethods = new List<MethodDesc>();
+            List<MethodDesc> supportedMethods = new();
             var behaviours = gameObject.GetComponents<MonoBehaviour>();
 
             foreach (var behaviour in behaviours)
@@ -307,22 +308,26 @@ namespace TimelineTools
                         if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
 
                         // Parse parameter type and create fullname
-                        string fullname = null;
+                        string richFormat = EditorGUIUtility.isProSkin ?
+                        "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>" :
+                        "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>";
+                        string fullName = null, richName = null;
                         ParameterType parameterType = ParameterType.None;
                         var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
-                        if (paramType == null) fullname = name + "()";
+                        if (paramType == null)
+                            (fullName, richName) = (name + "()", string.Format(richFormat, name, ""));
                         else if (paramType == typeof(string))
-                            (parameterType, fullname) = (ParameterType.String, name + "(string)");
+                            (parameterType, fullName, richName) = (ParameterType.String, name + "(string)", string.Format(richFormat, name, "string"));
                         else if (paramType == typeof(float))
-                            (parameterType, fullname) = (ParameterType.Float, name + "(float)");
+                            (parameterType, fullName, richName) = (ParameterType.Float, name + "(float)", string.Format(richFormat, name, "float"));
                         else if (paramType == typeof(int))
-                            (parameterType, fullname) = (ParameterType.Int, name + "(int)");
+                            (parameterType, fullName, richName) = (ParameterType.Int, name + "(int)", string.Format(richFormat, name, "int"));
                         else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object)))
-                            (parameterType, fullname) = (ParameterType.Object, name + "(Object)");
+                            (parameterType, fullName, richName) = (ParameterType.Object, name + "(Object)", string.Format(richFormat, name, "Object"));
                         else continue;
 
                         // Create method description object
-                        var supportedMethod = new MethodDesc { fullname = fullname, name = name, type = parameterType };
+                        var supportedMethod = new MethodDesc { name = name, fullName = fullName, richName = richName, type = parameterType };
 
                         // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
                         // Only retrieve first found function, but discard overloads.
@@ -352,18 +357,29 @@ namespace TimelineTools
             SerializedProperty m_Retroactive;
             SerializedProperty m_EmitOnce;
             SerializedProperty m_EmitInEditor;
+            SerializedProperty m_Color;
+            SerializedProperty m_ShowLineOverlay;
 
-            public ReorderableList list;
+            ReorderableList list;
             List<MethodDesc> supportedMethods;
+            List<string> fullNames;
+            List<string> richNames;
+            float dropDownComputedSize;
+            static string tooltip = "";
 
             // Get serialized object properties (for UI)
             public void OnEnable()
             {
+                // Functional properties
                 m_Time = serializedObject.FindProperty("m_Time");
                 m_Methods = serializedObject.FindProperty("methods");
                 m_Retroactive = serializedObject.FindProperty("retroactive");
                 m_EmitOnce = serializedObject.FindProperty("emitOnce");
                 m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
+
+                // Style properties
+                m_Color = serializedObject.FindProperty("color");
+                m_ShowLineOverlay = serializedObject.FindProperty("showLineOverlay");
             }
 
             // Draw inspector GUI
@@ -377,23 +393,60 @@ namespace TimelineTools
 
                 var changeScope = new EditorGUI.ChangeCheckScope();
                 EditorGUILayout.PropertyField(m_Time);
+                EditorGUILayout.Space();
 
+                EditorGUILayout.LabelField("Event Properties");
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(m_Retroactive);
+                EditorGUILayout.PropertyField(m_EmitOnce);
+                EditorGUILayout.PropertyField(m_EmitInEditor);
+
+                EditorGUILayout.Space();
+                EditorGUI.indentLevel--;
+                EditorGUILayout.LabelField("Marker Style");
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(m_Color);
+                EditorGUILayout.PropertyField(m_ShowLineOverlay);
+
+                EditorGUILayout.Space();
                 GameObject gameObject = null;
                 if (boundObj as GameObject != null) gameObject = (GameObject)boundObj;
                 else if (boundObj as Component != null) gameObject = ((Component)boundObj).gameObject;
 
                 supportedMethods = CollectSupportedMethods(gameObject).ToList();
+                fullNames = supportedMethods.Select(i => i.fullName).ToList();
+                fullNames.Add("No method");
+                richNames = supportedMethods.Select(i => i.richName).ToList();
+                richNames.Add("No method");
 
                 list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
                 {
                     drawElementCallback = DrawMethodAndArguments,
-                    drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "Method"); }
+                    drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
                 };
-                list.DoLayoutList();
 
-                EditorGUILayout.PropertyField(m_Retroactive);
-                EditorGUILayout.PropertyField(m_EmitOnce);
-                EditorGUILayout.PropertyField(m_EmitInEditor);
+                var longestMethodName = "";
+                tooltip = "";
+                for (int i = 0; i < list.serializedProperty.arraySize; i++)
+                {
+                    SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
+                    SerializedProperty m_Method = element.FindPropertyRelative("name");
+                    var index = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
+                    var fullName = index < 0 ? "No method" : fullNames[index];
+                    var richName = index < 0 ? "No method" : richNames[index];
+                    if (i > 0) tooltip += "\n";
+                    tooltip += richName;
+                    if (longestMethodName.Length < fullName.Length) longestMethodName = fullName;
+                }
+
+                GUIContent content = new(longestMethodName);
+                GUIStyle style = EditorStyles.popup;
+                style.richText = true;
+                // Compute how large the button needs to be.
+                Vector2 size = style.CalcSize(content);
+                dropDownComputedSize = size.x + 5;
+
+                list.DoLayoutList();
 
                 if (changeScope.changed)
                     serializedObject.ApplyModifiedProperties();
@@ -408,25 +461,21 @@ namespace TimelineTools
                 // Retrieve name for element
                 SerializedProperty m_Method = element.FindPropertyRelative("name");
 
-                // Create dropdown list
-                var dropdown = supportedMethods.Select(i => i.fullname).ToList();
-                dropdown.Add("No method");
-
                 // Get current method ID based off of stored name (index really)
                 var selectedMethodId = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
-                if (selectedMethodId == -1)
-                    selectedMethodId = supportedMethods.Count;
+                if (selectedMethodId == -1) selectedMethodId = supportedMethods.Count;
 
                 // Draw popup (dropdown box)
                 var previousMixedValue = EditorGUI.showMixedValue;
                 {
-                    if (m_Method.hasMultipleDifferentValues)
-                        EditorGUI.showMixedValue = true;
-                    selectedMethodId = EditorGUI.Popup(new Rect(rect.x, rect.y, 200, EditorGUIUtility.singleLineHeight),
-                                                       selectedMethodId, dropdown.ToArray());
+                    if (m_Method.hasMultipleDifferentValues) EditorGUI.showMixedValue = true;
+                    GUIStyle style = EditorStyles.popup;
+                    style.richText = true;
+                    selectedMethodId = EditorGUI.Popup(new Rect(rect.x, rect.y, dropDownComputedSize, EditorGUIUtility.singleLineHeight),
+                                                       selectedMethodId, fullNames.ToArray(), style);
                 }
 
-                rect = new Rect(rect.x + 220, rect.y, 200, EditorGUIUtility.singleLineHeight);
+                rect = new Rect(rect.x + dropDownComputedSize + 5, rect.y, rect.width - dropDownComputedSize - 5, EditorGUIUtility.singleLineHeight);
 
                 EditorGUI.showMixedValue = previousMixedValue;
 
@@ -468,6 +517,85 @@ namespace TimelineTools
                 {
                     SerializedProperty m_StringArg = element.FindPropertyRelative("String");
                     EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
+                }
+            }
+
+            // Editor used by the Timeline window to customize the appearance of an TestMarker
+            [CustomTimelineEditor(typeof(EventMarker))]//dd
+            public class EventMarkerOverlay : MarkerEditor
+            {
+                const float k_LineOverlayWidth = 6.0f;
+
+                const string k_OverlayPath = "EventMarker";
+                const string k_OverlayCollapsedPath = "EventMarker_Collapsed";
+
+                static readonly Texture2D s_OverlayTexture;
+                static readonly Texture2D s_OverlayCollapsedTexture;
+
+                static EventMarkerOverlay()
+                {
+                    s_OverlayTexture = Resources.Load<Texture2D>(k_OverlayPath);
+                    s_OverlayCollapsedTexture = Resources.Load<Texture2D>(k_OverlayCollapsedPath);
+                }
+
+                // Draws a vertical line on top of the Timeline window's contents.
+                public override void DrawOverlay(IMarker marker, MarkerUIStates uiState, MarkerOverlayRegion region)
+                {
+                    // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
+                    EventMarker annotation = marker as EventMarker;
+                    if (annotation == null) return;
+
+                    if (annotation.showLineOverlay) DrawLineOverlay(annotation.color, region);
+
+                    DrawColorOverlay(region, annotation.color, uiState);
+                }
+
+                // Sets the marker's tooltip based on its title.
+                public override MarkerDrawOptions GetMarkerOptions(IMarker marker)
+                {
+                    // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
+                    EventMarker annotation = marker as EventMarker;
+                    if (annotation == null) return base.GetMarkerOptions(marker);
+
+                    return new MarkerDrawOptions { tooltip = tooltip };
+                }
+
+                static void DrawLineOverlay(Color color, MarkerOverlayRegion region)
+                {
+                    // Calculate markerRegion's center on the x axis
+                    float markerRegionCenterX = region.markerRegion.xMin + (region.markerRegion.width - k_LineOverlayWidth) / 2.0f;
+
+                    // Calculate a rectangle that uses the full timeline region's height
+                    Rect overlayLineRect = new(markerRegionCenterX, region.timelineRegion.y, k_LineOverlayWidth, region.timelineRegion.height);
+
+                    Color overlayLineColor = new(color.r, color.g, color.b, color.a * 0.5f);
+                    EditorGUI.DrawRect(overlayLineRect, overlayLineColor);
+                }
+
+                static void DrawColorOverlay(MarkerOverlayRegion region, Color color, MarkerUIStates state)
+                {
+                    // Save the Editor's overlay color before changing it
+                    Color oldColor = GUI.color;
+
+
+                    if (state.HasFlag(MarkerUIStates.Selected))
+                    {
+                        GUI.color = new(1.0f - color.r, 1.0f - color.g, 1.0f - color.b, color.a * 1.1f);
+                        GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                    }
+                    else if (state.HasFlag(MarkerUIStates.Collapsed))
+                    {
+                        GUI.color = color;
+                        GUI.DrawTexture(region.markerRegion, s_OverlayCollapsedTexture);
+                    }
+                    else if (state.HasFlag(MarkerUIStates.None))
+                    {
+                        GUI.color = color;
+                        GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                    }
+
+                    // Restore the previous Editor's overlay color
+                    GUI.color = oldColor;
                 }
             }
         }

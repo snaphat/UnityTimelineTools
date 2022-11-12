@@ -325,10 +325,12 @@ namespace TimelineTools
                 serializedObject.Update();
 
                 var marker = target as Marker;
-                var parent = marker.parent;
-                if (marker.parent == null) return; // In case of looking at timeline asset directly.
 
-                var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(parent);
+                // Make sure there is an instance of all objects before attempting to show anything in inspector
+                if (marker == null || marker.parent == null || TimelineEditor.inspectedDirector == null) return;
+
+                // Get bound scene object
+                var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(marker.parent);
 
                 {
                     using var changeScope = new EditorGUI.ChangeCheckScope();

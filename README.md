@@ -19,6 +19,11 @@ Synchronize timeline and animation views to the same timescale and location.
 ## Bound Object Method Calls
 Use event markers to call methods on bound objects.
 
+Add A receiver component to a game object...\
+![Add_Component](https://user-images.githubusercontent.com/5836001/201498890-5e60b80e-2def-4b1e-9efc-6e0cc79db133.png)\
+![Add_Component2](https://user-images.githubusercontent.com/5836001/201498943-347b6eb5-f334-4438-a7ae-666169b9d06e.png)
+
+Add events to timeline...\
 ![Add Event](https://user-images.githubusercontent.com/5836001/201495690-400274e9-e06a-4404-a0a9-09f79a9c24c6.png)\
 ![Methods](https://user-images.githubusercontent.com/5836001/201495376-3a3cb844-2910-4215-afd8-ed3f3b1e3f79.png)\
 ![Inspector](https://user-images.githubusercontent.com/5836001/201495423-e914b968-4838-4402-98a2-3b3858f3aa12.png)

@@ -560,28 +560,38 @@ namespace TimelineTools
                 var eventMarker = marker as EventMarkerNotification;
                 if (eventMarker == null) return base.GetMarkerOptions(marker);
 
+                // Tooltip format
                 string richFormat = EditorGUIUtility.isProSkin ?
-                "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>\n" :
-                "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>\n";
+                "<b><color=#dcdcaa>{0}</color><color=#ffd700>(</color><color={3}>{1}</color> <color=#c586c0>(</color><color=#569cd6>{2}</color><color=#c586c0>)</color><color=#ffd700>)</color></b>\n" :
+                "<b><color=#795e26>{0}</color><color=#0431fa>(</color><color={3}>{1}</color> <color=#319331>(</color><color=#0000ff>{2}</color><color=#319331>)</color><color=#0431fa>)</color></b>\n";
 
                 // Create tooltip
                 string tooltip = "";
                 foreach (var callback in eventMarker.callbacks)
                 {
-                    string arg = "";
+                    string arg = "", type = "", color = "#000000";
                     if (callback.methodName.Length == 0) continue;
 
                     // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
                     if (callback.parameterType == ParameterType.Int)
-                        arg = callback.Int + " (int)";
+                        (arg, type, color) = (callback.Int.ToString(), "int", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
                     else if (callback.parameterType == ParameterType.Float)
-                        arg = callback.Float + " (float)";
+                        (arg, type, color) = (callback.Float.ToString(), "float", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
                     else if (callback.parameterType == ParameterType.String)
-                        arg = "\"" + callback.String + "\" (string)";
+                        (arg, type, color) = ("\"" + callback.String + "\"", "string", EditorGUIUtility.isProSkin ? "#ce9178" : "#a31515");
                     else if (callback.parameterType == ParameterType.Object)
-                        arg = callback.Object.ToString().Length > 48 ? "(Object)" : callback.Object.ToString();
+                    {
+                        // Retrieve the exposed reference
+                        var temp = callback.Object.Resolve(TimelineEditor.inspectedDirector.playableGraph.GetResolver()).ToString().Split('(', ')');
+                        (arg, type, color) = temp[0] == "null" ? ("None", "Object", "#ff0000") :
+                            temp[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
+                            (temp[0], temp[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                    }
 
-                    tooltip += string.Format(richFormat, callback.methodName, arg);
+                    // Format and trim string if no args
+                    tooltip += string.Format(richFormat, callback.methodName, arg, type, color)
+                    .Replace(" <color=#c586c0>(</color><color=#569cd6></color><color=#c586c0>)</color>", "")
+                    .Replace(" <color=#319331>(</color><color=#0000ff></color><color=#319331>)</color>", "");
                 }
 
                 tooltip = tooltip.Length == 0 ? "No method" : tooltip.TrimEnd();

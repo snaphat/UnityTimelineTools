@@ -36,7 +36,7 @@ namespace TimelineTools
         }
 
         [CustomStyle("EventMarkerStyle")]
-        [Serializable, DisplayName("Event Marker")]
+        [Serializable, DisplayName("Event")]
         public class EventMarkerNotification : Marker, INotification, INotificationOptionProvider
         {
             public Callback[] callbacks;

@@ -281,7 +281,6 @@ namespace TimelineTools
             public string assemblyName; // Object type of the method
             public string name;         // the short name of the method
             public string fullName;     // the name of the method with parameters: e.g.: Foo(arg_type)
-            public string richName;     // a colored version of fullname
             public ParameterType type;  // None, int, float, string, Object
             public bool isOverload;     // Overloads not handable so need detection
         }
@@ -295,7 +294,6 @@ namespace TimelineTools
             SerializedProperty m_Retroactive;
             SerializedProperty m_EmitOnce;
             SerializedProperty m_EmitInEditor;
-            SerializedProperty m_Tooltip;
             SerializedProperty m_Color;
             SerializedProperty m_ShowLineOverlay;
 
@@ -304,7 +302,6 @@ namespace TimelineTools
             ReorderableList list;
             List<MethodDescription> supportedMethods;
             List<string> fullNames;
-            List<string> richNames;
             float dropDownComputedSize;
 
             // Get serialized object properties (for UI)
@@ -318,7 +315,6 @@ namespace TimelineTools
                 m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
 
                 // Style properties
-                m_Tooltip = serializedObject.FindProperty("tooltip");
                 m_Color = serializedObject.FindProperty("color");
                 m_ShowLineOverlay = serializedObject.FindProperty("showLineOverlay");
             }
@@ -334,71 +330,68 @@ namespace TimelineTools
 
                 var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(parent);
 
-                var changeScope = new EditorGUI.ChangeCheckScope();
-                EditorGUILayout.PropertyField(m_Time);
-                EditorGUILayout.Space();
-
-                EditorGUILayout.LabelField("Event Properties");
-                EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(m_Retroactive);
-                EditorGUILayout.PropertyField(m_EmitOnce);
-                EditorGUILayout.PropertyField(m_EmitInEditor);
-
-                EditorGUILayout.Space();
-                EditorGUI.indentLevel--;
-                EditorGUILayout.LabelField("Marker Style");
-                EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(m_Color);
-                EditorGUILayout.PropertyField(m_ShowLineOverlay);
-
-                EditorGUILayout.Space();
-
-                GameObject curGameObject = null;
-                if (boundObj as GameObject != null) curGameObject = (GameObject)boundObj;
-                else if (boundObj as Component != null) curGameObject = ((Component)boundObj).gameObject;
-
-                // Only rebuild list if something as changed (it isn't draggable otherwise)
-                if (list == null || storedGameObject != curGameObject)
                 {
-                    storedGameObject = curGameObject;
-                    supportedMethods = CollectSupportedMethods(storedGameObject).ToList();
-                    fullNames = supportedMethods.Select(i => i.fullName).ToList();
-                    fullNames.Add("No method");
-                    richNames = supportedMethods.Select(i => i.richName).ToList();
-                    richNames.Add("No method");
+                    using var changeScope = new EditorGUI.ChangeCheckScope();
+                    EditorGUILayout.PropertyField(m_Time);
+                    EditorGUILayout.Space();
 
-                    list = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
+                    EditorGUILayout.LabelField("Event Properties");
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(m_Retroactive);
+                    EditorGUILayout.PropertyField(m_EmitOnce);
+                    EditorGUILayout.PropertyField(m_EmitInEditor);
+
+                    EditorGUILayout.Space();
+                    EditorGUI.indentLevel--;
+                    EditorGUILayout.LabelField("Marker Style");
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.PropertyField(m_Color);
+                    EditorGUILayout.PropertyField(m_ShowLineOverlay);
+
+                    EditorGUILayout.Space();
+
+                    GameObject curGameObject = null;
+                    if (boundObj as GameObject != null) curGameObject = (GameObject)boundObj;
+                    else if (boundObj as Component != null) curGameObject = ((Component)boundObj).gameObject;
+
+                    // Only rebuild list if something as changed (it isn't draggable otherwise)
+                    if (list == null || storedGameObject != curGameObject)
                     {
-                        drawElementCallback = DrawMethodAndArguments,
-                        drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
-                    };
+                        storedGameObject = curGameObject;
+                        supportedMethods = CollectSupportedMethods(storedGameObject).ToList();
+                        fullNames = supportedMethods.Select(i => i.fullName).ToList();
+
+                        list = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
+                        {
+                            drawElementCallback = DrawMethodAndArguments,
+                            drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
+                        };
+                    }
+
+                    // Find longest method name for computing space needed for reorderable list visual layout
+                    var longestMethodName = "";
+                    for (int i = 0; i < list.serializedProperty.arraySize; i++)
+                    {
+                        SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
+                        SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
+                        var index = supportedMethods.FindIndex(i => i.name == m_MethodName.stringValue);
+                        var fullName = index < 0 ? "" : fullNames[index]; // no method is a default blank string
+                        if (longestMethodName.Length < fullName.Length) longestMethodName = fullName;
+                    }
+
+                    // Compute how large the button needs to be.
+                    GUIContent content = new(longestMethodName);
+                    GUIStyle style = EditorStyles.popup;
+                    style.richText = true;
+                    Vector2 size = style.CalcSize(content);
+                    dropDownComputedSize = size.x + 5;
+
+                    // Layout reorderable list
+                    list.DoLayoutList();
+
+                    // apply changes
+                    if (changeScope.changed) serializedObject.ApplyModifiedProperties();
                 }
-
-                var longestMethodName = "";
-                var tooltip = "";
-                for (int i = 0; i < list.serializedProperty.arraySize; i++)
-                {
-                    SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
-                    SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
-                    var index = supportedMethods.FindIndex(i => i.name == m_MethodName.stringValue);
-                    var fullName = index < 0 ? "No method" : fullNames[index];
-                    var richName = index < 0 ? "No method" : richNames[index];
-                    if (i > 0) tooltip += "\n";
-                    tooltip += richName;
-                    if (longestMethodName.Length < fullName.Length) longestMethodName = fullName;
-                }
-                m_Tooltip.stringValue = tooltip; // store tooltip for this marker
-
-                GUIContent content = new(longestMethodName);
-                GUIStyle style = EditorStyles.popup;
-                style.richText = true;
-                // Compute how large the button needs to be.
-                Vector2 size = style.CalcSize(content);
-                dropDownComputedSize = size.x + 5;
-
-                list.DoLayoutList();
-
-                serializedObject.ApplyModifiedProperties();
             }
 
             // Draw drawer entry for given element
@@ -448,7 +441,7 @@ namespace TimelineTools
                 SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
                 m_ArgumentType.enumValueIndex = (int)method.type;
 
-                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property typ
                 if (method.type == ParameterType.Int)
                 {
                     SerializedProperty m_IntArg = element.FindPropertyRelative("Int");
@@ -459,15 +452,15 @@ namespace TimelineTools
                     SerializedProperty m_FloatArg = element.FindPropertyRelative("Float");
                     EditorGUI.PropertyField(rect, m_FloatArg, GUIContent.none);
                 }
-                else if (method.type == ParameterType.Object)
-                {
-                    SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
-                    EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
-                }
                 else if (method.type == ParameterType.String)
                 {
                     SerializedProperty m_StringArg = element.FindPropertyRelative("String");
                     EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
+                }
+                else if (method.type == ParameterType.Object)
+                {
+                    SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
+                    EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
                 }
             }
 
@@ -500,26 +493,23 @@ namespace TimelineTools
                             if (parameters.Length > 1) continue; // methods with multiple parameters are not supported
 
                             // Parse parameter type and create fullname
-                            string richFormat = EditorGUIUtility.isProSkin ?
-                            "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>" :
-                            "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>";
-                            string fullName = null, richName = null;
+                            string fullName = null;
                             ParameterType parameterType = ParameterType.None;
                             var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
                             if (paramType == null)
-                                (fullName, richName) = (name + "()", string.Format(richFormat, name, ""));
-                            else if (paramType == typeof(string))
-                                (parameterType, fullName, richName) = (ParameterType.String, name + "(string)", string.Format(richFormat, name, "string"));
-                            else if (paramType == typeof(float))
-                                (parameterType, fullName, richName) = (ParameterType.Float, name + "(float)", string.Format(richFormat, name, "float"));
+                                fullName = name + "()";
                             else if (paramType == typeof(int))
-                                (parameterType, fullName, richName) = (ParameterType.Int, name + "(int)", string.Format(richFormat, name, "int"));
+                                (parameterType, fullName) = (ParameterType.Int, name + "(int)");
+                            else if (paramType == typeof(float))
+                                (parameterType, fullName) = (ParameterType.Float, name + "(float)");
+                            else if (paramType == typeof(string))
+                                (parameterType, fullName) = (ParameterType.String, name + "(string)");
                             else if (paramType == typeof(object) || paramType.IsSubclassOf(typeof(Object)))
-                                (parameterType, fullName, richName) = (ParameterType.Object, name + "(Object)", string.Format(richFormat, name, "Object"));
+                                (parameterType, fullName) = (ParameterType.Object, name + "(Object)");
                             else continue;
 
                             // Create method description object
-                            var supportedMethod = new MethodDescription { name = name, fullName = fullName, richName = richName, type = parameterType, assemblyName = type.AssemblyQualifiedName };
+                            var supportedMethod = new MethodDescription { name = name, fullName = fullName, type = parameterType, assemblyName = type.AssemblyQualifiedName };
 
                             // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
                             // Only retrieve first found function, but discard overloads.
@@ -578,7 +568,31 @@ namespace TimelineTools
                 var eventMarker = marker as EventMarkerNotification;
                 if (eventMarker == null) return base.GetMarkerOptions(marker);
 
-                return new MarkerDrawOptions { tooltip = eventMarker.tooltip };
+                string richFormat = EditorGUIUtility.isProSkin ?
+                "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>\n" :
+                "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>\n";
+
+                string tooltip = "";
+                foreach (var callback in eventMarker.callbacks)
+                {
+                    if (callback.methodName.Length == 0) continue;
+                    // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                    if (callback.parameterType == ParameterType.None)
+                        tooltip += string.Format(richFormat, callback.methodName, "");
+                    else if (callback.parameterType == ParameterType.Int)
+                        tooltip += string.Format(richFormat, callback.methodName, callback.Int + " (int)");
+                    else if (callback.parameterType == ParameterType.Float)
+                        tooltip += string.Format(richFormat, callback.methodName, callback.Float + " (float)");
+                    else if (callback.parameterType == ParameterType.String)
+                        tooltip += string.Format(richFormat, callback.methodName, "\"" + callback.String + "\" (string)");
+                    else if (callback.parameterType == ParameterType.Object)
+                        tooltip += string.Format(richFormat, callback.methodName, callback.Object.ToString().Length > 48 ? "(Object)" : callback.Object);
+                    else
+                        tooltip += "Error: Unsupported Method";
+                }
+
+                tooltip = tooltip.Length == 0 ? "No method" : tooltip.TrimEnd();
+                return new MarkerDrawOptions { tooltip = tooltip };
             }
 
             static void DrawLineOverlay(Color color, MarkerOverlayRegion region)

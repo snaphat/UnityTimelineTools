@@ -441,27 +441,19 @@ namespace TimelineTools
                 SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
                 m_ArgumentType.enumValueIndex = (int)method.type;
 
-                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property typ
+                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                SerializedProperty property = null;
                 if (method.type == ParameterType.Int)
-                {
-                    SerializedProperty m_IntArg = element.FindPropertyRelative("Int");
-                    EditorGUI.PropertyField(rect, m_IntArg, GUIContent.none);
-                }
+                    property = element.FindPropertyRelative("Int");
                 else if (method.type == ParameterType.Float)
-                {
-                    SerializedProperty m_FloatArg = element.FindPropertyRelative("Float");
-                    EditorGUI.PropertyField(rect, m_FloatArg, GUIContent.none);
-                }
+                    property = element.FindPropertyRelative("Float");
                 else if (method.type == ParameterType.String)
-                {
-                    SerializedProperty m_StringArg = element.FindPropertyRelative("String");
-                    EditorGUI.PropertyField(rect, m_StringArg, GUIContent.none);
-                }
+                    property = element.FindPropertyRelative("String");
                 else if (method.type == ParameterType.Object)
-                {
-                    SerializedProperty m_ObjectArg = element.FindPropertyRelative("Object");
-                    EditorGUI.PropertyField(rect, m_ObjectArg, GUIContent.none);
-                }
+                    property = element.FindPropertyRelative("Object");
+
+                // Create propety field if property
+                if (property != null) EditorGUI.PropertyField(rect, property, GUIContent.none);
             }
 
             // Helper method for retrieving method signatures from a game object
@@ -572,23 +564,24 @@ namespace TimelineTools
                 "<b><color=cyan>{0}</color><color=yellow>(</color><color=magenta>{1}</color><color=yellow>)</color></b>\n" :
                 "<b><color=blue>{0}</color><color=green>(</color><color=red>{1}</color><color=green>)</color></b>\n";
 
+                // Create tooltip
                 string tooltip = "";
                 foreach (var callback in eventMarker.callbacks)
                 {
+                    string arg = "";
                     if (callback.methodName.Length == 0) continue;
+
                     // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
-                    if (callback.parameterType == ParameterType.None)
-                        tooltip += string.Format(richFormat, callback.methodName, "");
-                    else if (callback.parameterType == ParameterType.Int)
-                        tooltip += string.Format(richFormat, callback.methodName, callback.Int + " (int)");
+                    if (callback.parameterType == ParameterType.Int)
+                        arg = callback.Int + " (int)";
                     else if (callback.parameterType == ParameterType.Float)
-                        tooltip += string.Format(richFormat, callback.methodName, callback.Float + " (float)");
+                        arg = callback.Float + " (float)";
                     else if (callback.parameterType == ParameterType.String)
-                        tooltip += string.Format(richFormat, callback.methodName, "\"" + callback.String + "\" (string)");
+                        arg = "\"" + callback.String + "\" (string)";
                     else if (callback.parameterType == ParameterType.Object)
-                        tooltip += string.Format(richFormat, callback.methodName, callback.Object.ToString().Length > 48 ? "(Object)" : callback.Object);
-                    else
-                        tooltip += "Error: Unsupported Method";
+                        arg = callback.Object.ToString().Length > 48 ? "(Object)" : callback.Object.ToString();
+
+                    tooltip += string.Format(richFormat, callback.methodName, arg);
                 }
 
                 tooltip = tooltip.Length == 0 ? "No method" : tooltip.TrimEnd();

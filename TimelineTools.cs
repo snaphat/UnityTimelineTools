@@ -579,35 +579,39 @@ namespace TimelineTools
 
                 // Create tooltip
                 string tooltip = "";
-                foreach (var callback in eventMarker.callbacks)
-                {
-                    string arg = "", type = "", color = "#000000";
-                    if (callback.methodName.Length == 0) continue;
 
-                    // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
-                    if (callback.parameterType == ParameterType.Int)
-                        (arg, type, color) = (callback.Int.ToString(), "int", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
-                    else if (callback.parameterType == ParameterType.Float)
-                        (arg, type, color) = (callback.Float.ToString(), "float", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
-                    else if (callback.parameterType == ParameterType.String)
-                        (arg, type, color) = ("\"" + callback.String + "\"", "string", EditorGUIUtility.isProSkin ? "#ce9178" : "#a31515");
-                    else if (callback.parameterType == ParameterType.Object)
+                if (eventMarker.callbacks != null)
+                {
+                    foreach (var callback in eventMarker.callbacks)
                     {
-                        // Retrieve the exposed reference
-                        if (TimelineEditor.inspectedDirector.playableGraph.IsValid())
+                        string arg = "", type = "", color = "#000000";
+                        if (callback.methodName.Length == 0) continue;
+
+                        // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                        if (callback.parameterType == ParameterType.Int)
+                            (arg, type, color) = (callback.Int.ToString(), "int", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
+                        else if (callback.parameterType == ParameterType.Float)
+                            (arg, type, color) = (callback.Float.ToString(), "float", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
+                        else if (callback.parameterType == ParameterType.String)
+                            (arg, type, color) = ("\"" + callback.String + "\"", "string", EditorGUIUtility.isProSkin ? "#ce9178" : "#a31515");
+                        else if (callback.parameterType == ParameterType.Object)
                         {
-                            var temp = callback.Object.Resolve(TimelineEditor.inspectedDirector.playableGraph.GetResolver()).ToString().Split('(', ')');
-                            (arg, type, color) = temp[0] == "null" ? ("None", "Object", "#ff0000") :
-                                temp[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
-                                (temp[0], temp[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                            // Retrieve the exposed reference
+                            if (TimelineEditor.inspectedDirector.playableGraph.IsValid())
+                            {
+                                var temp = callback.Object.Resolve(TimelineEditor.inspectedDirector.playableGraph.GetResolver()).ToString().Split('(', ')');
+                                (arg, type, color) = temp[0] == "null" ? ("None", "Object", "#ff0000") :
+                                    temp[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
+                                    (temp[0], temp[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                            }
+
                         }
 
+                        // Format and trim string if no args
+                        tooltip += string.Format(richFormat, callback.methodName, arg, type, color)
+                        .Replace(" <color=#c586c0>(</color><color=#569cd6></color><color=#c586c0>)</color>", "")
+                        .Replace(" <color=#319331>(</color><color=#0000ff></color><color=#319331>)</color>", "");
                     }
-
-                    // Format and trim string if no args
-                    tooltip += string.Format(richFormat, callback.methodName, arg, type, color)
-                    .Replace(" <color=#c586c0>(</color><color=#569cd6></color><color=#c586c0>)</color>", "")
-                    .Replace(" <color=#319331>(</color><color=#0000ff></color><color=#319331>)</color>", "");
                 }
 
                 tooltip = tooltip.Length == 0 ? "No method" : tooltip.TrimEnd();

@@ -263,7 +263,7 @@ namespace TimelineTools
                         if (notification.emitInEditor)
                         {
                             // Push notification if time change in range
-                            double time = (notification as Marker).time;
+                            double time = notification.time;
                             bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
                             if (fire) output.PushNotification(playable, notification);
                         }
@@ -275,12 +275,13 @@ namespace TimelineTools
             }
         }
 
-        // For storing parased method information in the editor
-        public class MethodDesc
+        // For storing parsed method information in the editor
+        public class MethodDescription
         {
-            public string name;         // Foo
-            public string fullName;     // Foo(arg_type)
-            public string richName;     // Foo(arg_type)
+            public string assemblyName; // Object type of the method
+            public string name;         // the short name of the method
+            public string fullName;     // the name of the method with parameters: e.g.: Foo(arg_type)
+            public string richName;     // a colored version of fullname
             public ParameterType type;  // None, int, float, string, Object
             public bool isOverload;     // Overloads not handable so need detection
         }
@@ -290,7 +291,7 @@ namespace TimelineTools
         public class EventMarkerInspector : Editor
         {
             SerializedProperty m_Time;
-            SerializedProperty m_Methods;
+            SerializedProperty m_Callbacks;
             SerializedProperty m_Retroactive;
             SerializedProperty m_EmitOnce;
             SerializedProperty m_EmitInEditor;
@@ -301,7 +302,7 @@ namespace TimelineTools
             GameObject storedGameObject;
 
             ReorderableList list;
-            List<MethodDesc> supportedMethods;
+            List<MethodDescription> supportedMethods;
             List<string> fullNames;
             List<string> richNames;
             float dropDownComputedSize;
@@ -311,7 +312,7 @@ namespace TimelineTools
             {
                 // Functional properties
                 m_Time = serializedObject.FindProperty("m_Time");
-                m_Methods = serializedObject.FindProperty("methods");
+                m_Callbacks = serializedObject.FindProperty("callbacks");
                 m_Retroactive = serializedObject.FindProperty("retroactive");
                 m_EmitOnce = serializedObject.FindProperty("emitOnce");
                 m_EmitInEditor = serializedObject.FindProperty("emitInEditor");
@@ -366,7 +367,7 @@ namespace TimelineTools
                     richNames = supportedMethods.Select(i => i.richName).ToList();
                     richNames.Add("No method");
 
-                    list = new ReorderableList(serializedObject, m_Methods, true, true, true, true)
+                    list = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
                     {
                         drawElementCallback = DrawMethodAndArguments,
                         drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
@@ -378,8 +379,8 @@ namespace TimelineTools
                 for (int i = 0; i < list.serializedProperty.arraySize; i++)
                 {
                     SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
-                    SerializedProperty m_Method = element.FindPropertyRelative("name");
-                    var index = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
+                    SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
+                    var index = supportedMethods.FindIndex(i => i.name == m_MethodName.stringValue);
                     var fullName = index < 0 ? "No method" : fullNames[index];
                     var richName = index < 0 ? "No method" : richNames[index];
                     if (i > 0) tooltip += "\n";
@@ -407,16 +408,17 @@ namespace TimelineTools
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
 
                 // Retrieve name for element
-                SerializedProperty m_Method = element.FindPropertyRelative("name");
+                SerializedProperty m_AssemblyName = element.FindPropertyRelative("assemblyName");
+                SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
 
                 // Get current method ID based off of stored name (index really)
-                var selectedMethodId = supportedMethods.FindIndex(i => i.name == m_Method.stringValue);
+                var selectedMethodId = supportedMethods.FindIndex(i => i.name == m_MethodName.stringValue);
                 if (selectedMethodId == -1) selectedMethodId = supportedMethods.Count;
 
                 // Draw popup (dropdown box)
                 var previousMixedValue = EditorGUI.showMixedValue;
                 {
-                    if (m_Method.hasMultipleDifferentValues) EditorGUI.showMixedValue = true;
+                    if (m_MethodName.hasMultipleDifferentValues) EditorGUI.showMixedValue = true;
                     GUIStyle style = EditorStyles.popup;
                     style.richText = true;
                     selectedMethodId = EditorGUI.Popup(new Rect(rect.x, rect.y, dropDownComputedSize, EditorGUIUtility.singleLineHeight),
@@ -431,7 +433,8 @@ namespace TimelineTools
                 if (selectedMethodId < supportedMethods.Count)
                 {
                     var method = supportedMethods.ElementAt(selectedMethodId);
-                    m_Method.stringValue = method.name;
+                    m_AssemblyName.stringValue = method.assemblyName;
+                    m_MethodName.stringValue = method.name;
                     DrawArguments(rect, element, method);
                     if (supportedMethods.Any(i => i.isOverload == true))
                         EditorGUI.HelpBox(rect, "Some functions were overloaded in MonoBehaviour components and may not work as intended if used with Animation Events!", MessageType.Warning);
@@ -440,7 +443,7 @@ namespace TimelineTools
             }
 
             // Create UI elements for the given parameter type
-            void DrawArguments(Rect rect, SerializedProperty element, MethodDesc method)
+            void DrawArguments(Rect rect, SerializedProperty element, MethodDescription method)
             {
                 SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
                 m_ArgumentType.enumValueIndex = (int)method.type;
@@ -469,12 +472,12 @@ namespace TimelineTools
             }
 
             // Helper method for retrieving method signatures from a game object
-            public static IEnumerable<MethodDesc> CollectSupportedMethods(GameObject gameObject)
+            public static IEnumerable<MethodDescription> CollectSupportedMethods(GameObject gameObject)
             {
                 if (gameObject == null)
-                    return Enumerable.Empty<MethodDesc>();
+                    return Enumerable.Empty<MethodDescription>();
 
-                List<MethodDesc> supportedMethods = new();
+                List<MethodDescription> supportedMethods = new();
                 var behaviours = gameObject.GetComponents<MonoBehaviour>();
 
                 foreach (var behaviour in behaviours)
@@ -516,7 +519,7 @@ namespace TimelineTools
                             else continue;
 
                             // Create method description object
-                            var supportedMethod = new MethodDesc { name = name, fullName = fullName, richName = richName, type = parameterType };
+                            var supportedMethod = new MethodDescription { name = name, fullName = fullName, richName = richName, type = parameterType, assemblyName = type.AssemblyQualifiedName };
 
                             // Since AnimationEvents only stores method name, it can't handle functions with multiple overloads.
                             // Only retrieve first found function, but discard overloads.

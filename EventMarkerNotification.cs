@@ -19,10 +19,16 @@ namespace TimelineTools
         }
 
         [Serializable]
-        public class Method
+        public class Callback
         {
-            public string name;
+            // Names
+            public string assemblyName;
+            public string methodName;
+
+            // Argument type
             public ParameterType parameterType;
+
+            // argument properties
             public int Int;
             public string String;
             public float Float;
@@ -33,7 +39,7 @@ namespace TimelineTools
         [Serializable, DisplayName("Event Marker")]
         public class EventMarkerNotification : Marker, INotification, INotificationOptionProvider
         {
-            public Method[] methods;
+            public Callback[] callbacks;
             public bool retroactive = true;
             public bool emitOnce;
             public bool emitInEditor = true;

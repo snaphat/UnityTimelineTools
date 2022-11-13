@@ -455,9 +455,11 @@ namespace TimelineTools
                 SerializedProperty m_ArgumentType = element.FindPropertyRelative("parameterType");
                 m_ArgumentType.enumValueIndex = (int)callback.type;
 
-                // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                // Supports bool, int, float, Object, string, and none types. The Field style is determined by the serialized property type
                 SerializedProperty property = null;
-                if (callback.type == ParameterType.Int)
+                if (callback.type == ParameterType.Bool)
+                    property = element.FindPropertyRelative("Bool");
+                else if (callback.type == ParameterType.Int)
                     property = element.FindPropertyRelative("Int");
                 else if (callback.type == ParameterType.Float)
                     property = element.FindPropertyRelative("Float");
@@ -504,6 +506,8 @@ namespace TimelineTools
                             var paramType = parameters.Length == 1 ? parameters[0].ParameterType : null;
                             if (paramType == null)
                                 fullMethodName = methodName + "()";
+                            else if (paramType == typeof(bool))
+                                (parameterType, fullMethodName) = (ParameterType.Bool, methodName + "(bool)");
                             else if (paramType == typeof(int))
                                 (parameterType, fullMethodName) = (ParameterType.Int, methodName + "(int)");
                             else if (paramType == typeof(float))
@@ -593,7 +597,9 @@ namespace TimelineTools
                         if (callback.methodName.Length == 0) continue;
 
                         // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
-                        if (callback.parameterType == ParameterType.Int)
+                        if (callback.parameterType == ParameterType.Bool)
+                            (arg, type, color) = (callback.Bool.ToString(), "bool", callback.Bool ? "#009900" : "#ff2222");
+                        else if (callback.parameterType == ParameterType.Int)
                             (arg, type, color) = (callback.Int.ToString(), "int", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
                         else if (callback.parameterType == ParameterType.Float)
                             (arg, type, color) = (callback.Float.ToString(), "float", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");

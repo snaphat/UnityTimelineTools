@@ -12,6 +12,7 @@ namespace TimelineTools
         public enum ParameterType
         {
             None,
+            Bool,
             Int,
             Float,
             String,
@@ -29,6 +30,7 @@ namespace TimelineTools
             public ParameterType parameterType;
 
             // argument properties
+            public bool Bool;
             public int Int;
             public string String;
             public float Float;

@@ -21,7 +21,9 @@ namespace TimelineTools
 
                     // Setup argument
                     object[] argument = new object[1];
-                    if (callback.parameterType == ParameterType.Int)
+                    if (callback.parameterType == ParameterType.Bool)
+                        argument[0] = callback.Bool;
+                    else if (callback.parameterType == ParameterType.Int)
                         argument[0] = callback.Int;
                     else if (callback.parameterType == ParameterType.Float)
                         argument[0] = callback.Float;

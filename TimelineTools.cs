@@ -544,14 +544,17 @@ namespace TimelineTools
             const float k_LineOverlayWidth = 6.0f;
 
             const string k_OverlayPath = "EventMarker";
+            const string k_OverlaySelectedPath = "EventMarker_Selected";
             const string k_OverlayCollapsedPath = "EventMarker_Collapsed";
 
             static readonly Texture2D s_OverlayTexture;
+            static readonly Texture2D s_OverlaySelectedTexture;
             static readonly Texture2D s_OverlayCollapsedTexture;
 
             static EventMarkerOverlay()
             {
                 s_OverlayTexture = Resources.Load<Texture2D>(k_OverlayPath);
+                s_OverlaySelectedTexture = Resources.Load<Texture2D>(k_OverlaySelectedPath);
                 s_OverlayCollapsedTexture = Resources.Load<Texture2D>(k_OverlayCollapsedPath);
             }
 
@@ -637,11 +640,12 @@ namespace TimelineTools
                 // Save the Editor's overlay color before changing it
                 Color oldColor = GUI.color;
 
-
                 if (state.HasFlag(MarkerUIStates.Selected))
                 {
-                    GUI.color = new(1.0f - color.r, 1.0f - color.g, 1.0f - color.b, color.a * 1.1f);
+                    GUI.color = color;
                     GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                    GUI.color = new(1.0f, 1.0f, 1.0f, 1.0f);
+                    GUI.DrawTexture(region.markerRegion, s_OverlaySelectedTexture);
                 }
                 else if (state.HasFlag(MarkerUIStates.Collapsed))
                 {

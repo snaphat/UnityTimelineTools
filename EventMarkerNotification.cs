@@ -20,21 +20,26 @@ namespace TimelineTools
         }
 
         [Serializable]
-        public class Callback
+        public class Argument
         {
-            // Names
-            public string assemblyName;
-            public string methodName;
-
             // Argument type
             public ParameterType parameterType;
-
             // argument properties
             public bool Bool;
             public int Int;
             public string String;
             public float Float;
             public ExposedReference<Object> Object;
+        }
+
+        [Serializable]
+        public class Callback
+        {
+            // Names
+            public string assemblyName;
+            public string methodName;
+            public string fullMethodName;
+            public Argument[] arguments;
         }
 
         [CustomStyle("EventMarkerStyle")]

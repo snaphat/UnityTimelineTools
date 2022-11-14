@@ -18,24 +18,30 @@ namespace TimelineTools
 
                 foreach (var callback in message.callbacks)
                 {
+                    // Setup arguments
+                    object[] arguments = new object[callback.arguments.Length];
+                    Type[] types = new Type[callback.arguments.Length];
+                    for (int i = 0; i < arguments.Length; i++)
+                    {
+                        var argument = callback.arguments[i];
+                        if (argument.parameterType == ParameterType.Bool)
+                            arguments[i] = argument.Bool;
+                        else if (argument.parameterType == ParameterType.Int)
+                            arguments[i] = argument.Int;
+                        else if (argument.parameterType == ParameterType.Float)
+                            arguments[i] = argument.Float;
+                        else if (argument.parameterType == ParameterType.Object)
+                            arguments[i] = argument.Object.Resolve(origin.GetGraph().GetResolver());
+                        else if (argument.parameterType == ParameterType.String)
+                            arguments[i] = argument.String;
 
-                    // Setup argument
-                    object[] argument = new object[1];
-                    if (callback.parameterType == ParameterType.Bool)
-                        argument[0] = callback.Bool;
-                    else if (callback.parameterType == ParameterType.Int)
-                        argument[0] = callback.Int;
-                    else if (callback.parameterType == ParameterType.Float)
-                        argument[0] = callback.Float;
-                    else if (callback.parameterType == ParameterType.Object)
-                        argument[0] = callback.Object.Resolve(origin.GetGraph().GetResolver());
-                    else if (callback.parameterType == ParameterType.String)
-                        argument[0] = callback.String;
+                        types[i] = arguments[i].GetType();
+                    }
 
                     // Call method
                     var behaviour = gameObject.GetComponent(Type.GetType(callback.assemblyName)) as MonoBehaviour;
-                    MethodInfo methodInfo = behaviour.GetType().GetMethod(callback.methodName);
-                    methodInfo.Invoke(behaviour, callback.parameterType == ParameterType.None ? null : argument);
+                    MethodInfo methodInfo = behaviour.GetType().GetMethod(callback.methodName, types);
+                    methodInfo.Invoke(behaviour, arguments);
                 }
             }
         }

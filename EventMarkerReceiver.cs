@@ -34,6 +34,8 @@ namespace TimelineTools
                             arguments[i] = argument.Object.Resolve(origin.GetGraph().GetResolver());
                         else if (argument.parameterType == ParameterType.String)
                             arguments[i] = argument.String;
+                        else if (argument.parameterType == ParameterType.Enum)
+                            arguments[i] = Enum.ToObject(Type.GetType(argument.String), argument.Int);
 
                         types[i] = arguments[i].GetType();
                     }

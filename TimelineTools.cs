@@ -278,12 +278,12 @@ namespace TimelineTools
         // For storing parsed method information in the editor
         public class CallbackDescription
         {
-            public string assemblyName;                // Object type of the method
-            public string methodName;                  // The short name of the method
-            public string fullMethodName;              // The name of the method with parameters: e.g.: Foo(arg_type)
-            public string qualifiedMethodName;         // The name of the class + method + parameters: e.g. Bar.Foo(arg_type)
-            public List<ParameterType> parameterTypes; // none, bool, int, float, string, Object
-            public bool isOverload;                    // Overloads not handable so need detection
+            public string assemblyName;        // Object type of the method
+            public string methodName;          // The short name of the method
+            public string fullMethodName;      // The name of the method with parameters: e.g.: Foo(arg_type)
+            public string qualifiedMethodName; // The name of the class + method + parameters: e.g. Bar.Foo(arg_type)
+            public List<Type> parameterTypes;  // none, bool, int, float, string, Object, Enum
+            public bool isOverload;            // Overloads not handable so need detection
         }
 
         // Custom Inspector for creating EventMarkers
@@ -478,23 +478,43 @@ namespace TimelineTools
                     var type = callbackDescription.parameterTypes[i];
                     var argumentProperty = m_Arguments.GetArrayElementAtIndex(i);
                     SerializedProperty m_ParameterType = argumentProperty.FindPropertyRelative("parameterType");
-                    m_ParameterType.enumValueIndex = (int)type; // assign property type
 
-                    // Grab the correct property type. The Field style is determined by the serialized property type
-                    SerializedProperty property = null;
-                    if (type == ParameterType.Bool)
-                        property = argumentProperty.FindPropertyRelative("Bool");
-                    else if (type == ParameterType.Int)
-                        property = argumentProperty.FindPropertyRelative("Int");
-                    else if (type == ParameterType.Float)
-                        property = argumentProperty.FindPropertyRelative("Float");
-                    else if (type == ParameterType.String)
-                        property = argumentProperty.FindPropertyRelative("String");
-                    else if (type == ParameterType.Object)
-                        property = argumentProperty.FindPropertyRelative("Object");
+                    // Assign Param type and generate field. The Field style is determined by the serialized property type
+                    if (type == typeof(bool))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Bool;
+                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("Bool"), GUIContent.none);
+                    }
+                    else if (type == typeof(int))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Int;
+                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("Int"), GUIContent.none);
+                    }
+                    else if (type == typeof(float))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Float;
+                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("Float"), GUIContent.none);
+                    }
+                    else if (type == typeof(string))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.String;
+                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("String"), GUIContent.none);
+                    }
+                    else if (type == typeof(object) || type.IsSubclassOf(typeof(Object)))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Object;
+                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("Object"), GUIContent.none);
+                    }
+                    else if (type.IsEnum)
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Enum;
+                        var intProperty = argumentProperty.FindPropertyRelative("Int");
+                        var stringProperty = argumentProperty.FindPropertyRelative("String");
+                        intProperty.intValue = (int)(object)EditorGUI.EnumPopup(rect, (Enum)Enum.ToObject(type, intProperty.intValue)); // Parse as enum type
+                        stringProperty.stringValue = type.AssemblyQualifiedName; // store full type name
+                    }
 
-                    // Create property field if property
-                    if (property != null) EditorGUI.PropertyField(rect, property, GUIContent.none);
+                    // Update field position
                     rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
                 }
             }
@@ -523,7 +543,7 @@ namespace TimelineTools
                             if (method.Name == "Main" && method.Name == "Start" && method.Name == "Awake" && method.Name == "Update") continue;
 
                             var parameters = method.GetParameters();    // get parameters
-                            List<ParameterType> parameterTypes = new(); // create empty parameter list
+                            List<Type> parameterTypes = new(); // create empty parameter list
                             string fullMethodName = method.Name + "(";  // start full method name signature
                             bool validMethod = true;                    // mark the method as valid until proven otherwise
 
@@ -532,22 +552,24 @@ namespace TimelineTools
                             {
                                 if (i > 0) fullMethodName += ", ";
                                 var parameter = parameters[i];
-                                ParameterType parameterType = ParameterType.None; var strType = "";
+                                var strType = "";
                                 if (parameter.ParameterType == typeof(bool))
-                                    (parameterType, strType) = (ParameterType.Bool, "bool");
+                                    strType = "bool";
                                 else if (parameter.ParameterType == typeof(int))
-                                    (parameterType, strType) = (ParameterType.Int, "int");
+                                    strType = "int";
                                 else if (parameter.ParameterType == typeof(float))
-                                    (parameterType, strType) = (ParameterType.Float, "float");
+                                    strType = "float";
                                 else if (parameter.ParameterType == typeof(string))
-                                    (parameterType, strType) = (ParameterType.String, "string");
+                                    strType = "string";
                                 else if (parameter.ParameterType == typeof(object) || parameter.ParameterType.IsSubclassOf(typeof(Object)))
-                                    (parameterType, strType) = (ParameterType.Object, "Object");
+                                    strType = "Object";
+                                else if (parameter.ParameterType.IsEnum && Enum.GetUnderlyingType(parameter.ParameterType) == typeof(int))
+                                    strType = parameter.ParameterType.Name; // use underlying typename for fullanme string
                                 else
                                     validMethod = false;
 
                                 // Add parameter and update full method name with parameter type and name
-                                parameterTypes.Add(parameterType);
+                                parameterTypes.Add(parameter.ParameterType);
                                 fullMethodName += strType + " " + parameter.Name;
                             }
 
@@ -651,6 +673,8 @@ namespace TimelineTools
                                         (temp[0], temp[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                                 }
                             }
+                            else if (argument.parameterType == ParameterType.Enum)
+                                (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }
 

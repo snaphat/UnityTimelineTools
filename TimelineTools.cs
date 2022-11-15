@@ -332,7 +332,6 @@ namespace TimelineTools
 
                 // Get bound scene object
                 var boundObj = TimelineEditor.inspectedDirector.GetGenericBinding(marker.parent);
-
                 {
                     using var changeScope = new EditorGUI.ChangeCheckScope();
                     EditorGUILayout.PropertyField(m_Time);
@@ -653,7 +652,7 @@ namespace TimelineTools
                         {
                             if (i > 0) argumentText += ", ";
 
-                            // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
+                            // Supports int, float, Object, string, enum, and none types. The Field style is determined by the serialized property type
                             var argument = callback.arguments[i];
                             var objectValue = argument.Object.defaultValue.ToString().Split('(', ')');
                             if (argument.parameterType == ParameterType.Bool)

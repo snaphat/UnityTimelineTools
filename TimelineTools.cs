@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEditor.Timeline.Actions;
@@ -654,6 +655,7 @@ namespace TimelineTools
 
                             // Supports int, float, Object, string, and none types. The Field style is determined by the serialized property type
                             var argument = callback.arguments[i];
+                            var objectValue = argument.Object.defaultValue.ToString().Split('(', ')');
                             if (argument.parameterType == ParameterType.Bool)
                                 (arg, type, color) = (argument.Bool.ToString(), "bool", argument.Bool ? "#009900" : "#ff2222");
                             else if (argument.parameterType == ParameterType.Int)
@@ -663,18 +665,12 @@ namespace TimelineTools
                             else if (argument.parameterType == ParameterType.String)
                                 (arg, type, color) = ("\"" + argument.String + "\"", "string", EditorGUIUtility.isProSkin ? "#ce9178" : "#a31515");
                             else if (argument.parameterType == ParameterType.Object)
-                            {
-                                // Retrieve the exposed reference
-                                if (TimelineEditor.inspectedDirector.playableGraph.IsValid())
-                                {
-                                    var temp = argument.Object.Resolve(TimelineEditor.inspectedDirector.playableGraph.GetResolver()).ToString().Split('(', ')');
-                                    (arg, type, color) = temp[0] == "null" ? ("None", "Object", "#ff0000") :
-                                        temp[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
-                                        (temp[0], temp[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
-                                }
-                            }
+                                (arg, type, color) = objectValue[0] == "null" ? ("None", "Object", "#ff0000") :
+                                                   objectValue[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
+                                                                                (objectValue[0], objectValue[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Enum)
                                 (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }
 

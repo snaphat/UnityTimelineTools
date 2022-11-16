@@ -287,6 +287,52 @@ namespace TimelineTools
             public bool isOverload;            // Overloads not handable so need detection
         }
 
+        // For uniquely identifying Stored SerializedProperty methods with found CallbackDescription methods using assembly name, method name, and argument types
+        public static class ListExtensions
+        {
+            public static int FindMethod(this IList<CallbackDescription> callbacks, SerializedProperty assemblyName, SerializedProperty methodName, SerializedProperty arguments)
+            {
+                // Iterate each callback method in list
+                for (int id = 0; id < callbacks.Count; id++)
+                {
+                    var callback = callbacks[id];
+
+                    // if num params, assembly name, or method name don't match continue to next callback
+                    if (arguments.arraySize != callback.parameterTypes.Count || assemblyName.stringValue != callback.assemblyName || methodName.stringValue != callback.methodName)
+                        continue;
+
+                    // Iterate each param type
+                    int i;
+                    for (i = 0; i < callback.parameterTypes.Count; i++)
+                    {
+                        // Grab types
+                        var type = callback.parameterTypes[i];
+                        var argumentProperty = arguments.GetArrayElementAtIndex(i);
+                        SerializedProperty m_ParameterType = argumentProperty.FindPropertyRelative("parameterType");
+                        var type2 = m_ParameterType.enumValueIndex;
+
+                        // break early if no match
+                        if (type == typeof(bool) && type2 != (int)ParameterType.Bool)
+                            break;
+                        else if (type == typeof(int) && type2 != (int)ParameterType.Int)
+                            break;
+                        else if (type == typeof(float) && type2 != (int)ParameterType.Float)
+                            break;
+                        else if (type == typeof(string) && type2 != (int)ParameterType.String)
+                            break;
+                        else if ((type == typeof(object) || type.IsSubclassOf(typeof(Object))) && type2 != (int)ParameterType.Object)
+                            break;
+                        else if (type.IsEnum && (type2 != (int)ParameterType.Enum || argumentProperty.FindPropertyRelative("String").stringValue != type.AssemblyQualifiedName))
+                            break;
+                    }
+
+                    // if count match then method matches so return id
+                    if (i == callback.parameterTypes.Count) return id;
+                }
+                return -1;
+            }
+        }
+
         // Custom Inspector for creating EventMarkers
         [CustomEditor(typeof(EventMarkerNotification)), CanEditMultipleObjects]
         public class EventMarkerInspector : Editor
@@ -376,12 +422,13 @@ namespace TimelineTools
                         // Retrieve element (elements are added when + is clicked in reorderable list UI)
                         SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
 
-                        // Retrieve name for element
+                        // Retrieve element properties
                         SerializedProperty m_AssemblyName = element.FindPropertyRelative("assemblyName");
-                        SerializedProperty m_FullMethodName = element.FindPropertyRelative("fullMethodName");
+                        SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
+                        SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
 
-                        // Get current method ID based off of stored name (index really)
-                        var selectedMethodId = supportedMethods.FindIndex(i => i.assemblyName == m_AssemblyName.stringValue && i.fullMethodName == m_FullMethodName.stringValue);
+                        // Get current method ID (order in list)
+                        var selectedMethodId = supportedMethods.FindMethod(m_AssemblyName, m_MethodName, m_Arguments);
 
                         // If no method use default otherwise use method name + parameters
                         var fullName = selectedMethodId < 0 ? "No method" : supportedMethods[selectedMethodId].fullMethodName;
@@ -411,17 +458,17 @@ namespace TimelineTools
                 // Retrieve element (elements are added when + is clicked in reorderable list UI)
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
 
-                // Retrieve name for element
+                // Retrieve element properties
                 SerializedProperty m_AssemblyName = element.FindPropertyRelative("assemblyName");
-                SerializedProperty m_FullMethodName = element.FindPropertyRelative("fullMethodName");
+                SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
+                SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
 
                 // Get current method ID based off of stored name (index really)
-                var selectedMethodId = supportedMethods.FindIndex(i => i.assemblyName == m_AssemblyName.stringValue && i.fullMethodName == m_FullMethodName.stringValue);
+                var selectedMethodId = supportedMethods.FindMethod(m_AssemblyName, m_MethodName, m_Arguments);
 
                 // Draw popup (dropdown box)
                 var previousMixedValue = EditorGUI.showMixedValue;
                 {
-                    if (m_FullMethodName.hasMultipleDifferentValues) EditorGUI.showMixedValue = true;
                     GUIStyle style = EditorStyles.popup;
                     style.richText = true;
 
@@ -447,12 +494,10 @@ namespace TimelineTools
                 if (selectedMethodId > -1 && selectedMethodId < supportedMethods.Count)
                 {
                     var callbackDescription = supportedMethods.ElementAt(selectedMethodId);
-                    SerializedProperty m_methodName = element.FindPropertyRelative("methodName");
 
-                    // Fillout assembly and method name propetries using the selected id
-                    m_AssemblyName.stringValue = callbackDescription.assemblyName;     // used for unique iding
-                    m_FullMethodName.stringValue = callbackDescription.fullMethodName; // used for unique iding
-                    m_methodName.stringValue = callbackDescription.methodName;         // used for name lookup in receiver
+                    // Fillout assembly and method name properties using the selected id
+                    m_AssemblyName.stringValue = callbackDescription.assemblyName;
+                    m_MethodName.stringValue = callbackDescription.methodName;
 
                     // Draw each argument
                     DrawArguments(rect, element, callbackDescription);
@@ -644,10 +689,10 @@ namespace TimelineTools
                 {
                     foreach (var callback in eventMarker.callbacks)
                     {
-                        string arg = "", type = "", color = "#000000";
-                        if (callback.fullMethodName.Length == 0) continue;
+                        // if no method name, give up
+                        if (callback.methodName.Length == 0) continue;
 
-                        string argumentText = "";
+                        string arg = "", type = "", color = "#000000", argumentText = "";
                         for (int i = 0; i < callback.arguments.Length; i++)
                         {
                             if (i > 0) argumentText += ", ";

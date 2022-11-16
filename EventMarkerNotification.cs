@@ -39,7 +39,6 @@ namespace TimelineTools
             // Names
             public string assemblyName;
             public string methodName;
-            public string fullMethodName;
             public Argument[] arguments;
         }
 

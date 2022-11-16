@@ -100,7 +100,7 @@ namespace TimelineTools
 
             // Handle infinite animation clips (really tracks)
             // filter infinite animation tracks
-            var infiniteTracks = unlockedTracks.OfType<AnimationTrack>().Where(e => !e.inClipMode);
+            var infiniteTracks = unlockedTracks.OfType<AnimationTrack>().Where(e => !e.inClipMode && e.infiniteClip != null);
             foreach (var track in infiniteTracks)
             {
                 // Grab the infinite clip in track
@@ -156,7 +156,7 @@ namespace TimelineTools
             // Handle other tracks (all unlocked non-infinite animation or non-animation clips)
             {
                 // Get other tracks
-                var otherTracks = unlockedTracks.Where(e => (e is AnimationTrack a && a.inClipMode == true) || e is not AnimationTrack).ToList();
+                var otherTracks = unlockedTracks.Where(e => (e is AnimationTrack a && (a.inClipMode == true || a.infiniteClip == null)) || e is not AnimationTrack).ToList();
 
                 // Get amount of time to insert/cut in seconds for tracks using the timeline assets frame rate
                 var amount = frames / timelineAsset.editorSettings.frameRate;

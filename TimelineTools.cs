@@ -298,7 +298,7 @@ namespace TimelineTools
                     var callback = callbacks[id];
 
                     // if num params, assembly name, or method name don't match continue to next callback
-                    if (arguments.arraySize != callback.parameterTypes.Count || assemblyName.stringValue != callback.assemblyName || methodName.stringValue != callback.methodName)
+                    if (arguments.arraySize != callback.parameterTypes.Count || assemblyName.stringValue.Split(",")[0] != callback.assemblyName || methodName.stringValue != callback.methodName)
                         continue;
 
                     // Iterate each param type
@@ -322,7 +322,7 @@ namespace TimelineTools
                             break;
                         else if ((type == typeof(object) || type.IsSubclassOf(typeof(Object))) && type2 != (int)ParameterType.Object)
                             break;
-                        else if (type.IsEnum && (type2 != (int)ParameterType.Enum || argumentProperty.FindPropertyRelative("String").stringValue != type.AssemblyQualifiedName))
+                        else if (type.IsEnum && (type2 != (int)ParameterType.Enum || argumentProperty.FindPropertyRelative("String").stringValue.Split(",")[0] != type.FullName))
                             break;
                     }
 
@@ -556,7 +556,7 @@ namespace TimelineTools
                         var intProperty = argumentProperty.FindPropertyRelative("Int");
                         var stringProperty = argumentProperty.FindPropertyRelative("String");
                         intProperty.intValue = (int)(object)EditorGUI.EnumPopup(rect, (Enum)Enum.ToObject(type, intProperty.intValue)); // Parse as enum type
-                        stringProperty.stringValue = type.AssemblyQualifiedName; // store full type name
+                        stringProperty.stringValue = type.FullName; // store full type name
                     }
 
                     // Update field position
@@ -625,7 +625,7 @@ namespace TimelineTools
                             fullMethodName += ")";
 
                             // Create method description object
-                            var supportedMethod = new CallbackDescription { methodName = method.Name, fullMethodName = fullMethodName, qualifiedMethodName = methodType + "/" + fullMethodName, parameterTypes = parameterTypes, assemblyName = methodType.AssemblyQualifiedName };
+                            var supportedMethod = new CallbackDescription { methodName = method.Name, fullMethodName = fullMethodName, qualifiedMethodName = methodType + "/" + fullMethodName, parameterTypes = parameterTypes, assemblyName = methodType.FullName };
                             supportedMethods.Add(supportedMethod);
                         }
                         methodType = methodType.BaseType;

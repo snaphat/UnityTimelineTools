@@ -227,6 +227,24 @@ namespace TimelineTools
     // Adds Editor support for Timeline Event Markers for calling GameObject methods
     namespace Events
     {
+        [CustomTimelineEditor(typeof(EventMarkerTrack))]
+        public class EventTrackEditor : TrackEditor
+        {
+            readonly Texture2D iconTexture;
+
+            public EventTrackEditor()
+            {
+                iconTexture = Resources.Load<Texture2D>("EventMarkerIcon");
+            }
+
+            public override TrackDrawOptions GetTrackOptions(TrackAsset track, Object binding)
+            {
+                var options = base.GetTrackOptions(track, binding);
+                options.icon = iconTexture;
+                return options;
+            }
+        }
+
         // Add event handler for detecting timeline marker events during timeline preview scrubbing - fixes scrubbing not calling events
         public class TimelineEditorEventHandler
         {
@@ -684,19 +702,17 @@ namespace TimelineTools
         {
             const float k_LineOverlayWidth = 6.0f;
 
-            const string k_OverlayPath = "EventMarker";
-            const string k_OverlaySelectedPath = "EventMarker_Selected";
-            const string k_OverlayCollapsedPath = "EventMarker_Collapsed";
-
-            static readonly Texture2D s_OverlayTexture;
-            static readonly Texture2D s_OverlaySelectedTexture;
-            static readonly Texture2D s_OverlayCollapsedTexture;
+            static readonly Texture2D iconTexture;
+            static readonly Texture2D overlayTexture;
+            static readonly Texture2D overlaySelectedTexture;
+            static readonly Texture2D overlayCollapsedTexture;
 
             static EventMarkerOverlay()
             {
-                s_OverlayTexture = Resources.Load<Texture2D>(k_OverlayPath);
-                s_OverlaySelectedTexture = Resources.Load<Texture2D>(k_OverlaySelectedPath);
-                s_OverlayCollapsedTexture = Resources.Load<Texture2D>(k_OverlayCollapsedPath);
+                iconTexture = Resources.Load<Texture2D>("EventMarkerIcon");
+                overlayTexture = Resources.Load<Texture2D>("EventMarker");
+                overlaySelectedTexture = Resources.Load<Texture2D>("EventMarker_Selected");
+                overlayCollapsedTexture = Resources.Load<Texture2D>("EventMarker_Collapsed");
             }
 
             // Draws a vertical line on top of the Timeline window's contents.
@@ -717,6 +733,9 @@ namespace TimelineTools
                 // The `marker argument needs to be cast as the appropriate type, usually the one specified in the `CustomTimelineEditor` attribute
                 var eventMarker = marker as EventMarkerNotification;
                 if (eventMarker == null) return base.GetMarkerOptions(marker);
+
+                // Set marker icon
+                EditorGUIUtility.SetIconForObject(eventMarker, iconTexture);
 
                 // Tooltip format
                 string richMethodFormat = EditorGUIUtility.isProSkin ?
@@ -789,19 +808,19 @@ namespace TimelineTools
                 if (state.HasFlag(MarkerUIStates.Selected))
                 {
                     GUI.color = color;
-                    GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                    GUI.DrawTexture(region.markerRegion, overlayTexture);
                     GUI.color = new(1.0f, 1.0f, 1.0f, 1.0f);
-                    GUI.DrawTexture(region.markerRegion, s_OverlaySelectedTexture);
+                    GUI.DrawTexture(region.markerRegion, overlaySelectedTexture);
                 }
                 else if (state.HasFlag(MarkerUIStates.Collapsed))
                 {
                     GUI.color = color;
-                    GUI.DrawTexture(region.markerRegion, s_OverlayCollapsedTexture);
+                    GUI.DrawTexture(region.markerRegion, overlayCollapsedTexture);
                 }
                 else if (state.HasFlag(MarkerUIStates.None))
                 {
                     GUI.color = color;
-                    GUI.DrawTexture(region.markerRegion, s_OverlayTexture);
+                    GUI.DrawTexture(region.markerRegion, overlayTexture);
                 }
 
                 // Restore the previous Editor's overlay color

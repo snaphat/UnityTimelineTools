@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Unity.VisualScripting;
 using UnityEditor;
 using UnityEditor.Timeline;
 using UnityEditor.Timeline.Actions;
@@ -207,11 +206,11 @@ namespace TimelineTools
             // Get Animation Window horizontal range setter
             var animationWindow = EditorWindow.GetWindow<AnimationWindow>(false, null, false);
             if (animationWindow == null) return;
-            var m_AnimEditor = animationWindow.GetType().GetField("m_AnimEditor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(animationWindow);
+            var m_AnimEditor = animationWindow.GetType().GetField("m_AnimEditor", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(animationWindow);
             if (m_AnimEditor == null) return;
-            var m_State = m_AnimEditor.GetType().GetField("m_State", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(m_AnimEditor);
+            var m_State = m_AnimEditor.GetType().GetField("m_State", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(m_AnimEditor);
             if (m_State == null) return;
-            var m_TimeArea = m_State.GetType().GetField("m_TimeArea", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(m_State);
+            var m_TimeArea = m_State.GetType().GetField("m_TimeArea", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(m_State);
             if (m_TimeArea == null) return;
             var SetShownHRangeInsideMargins = m_TimeArea.GetType().GetMethod("SetShownHRangeInsideMargins");
             if (SetShownHRangeInsideMargins == null) return;
@@ -239,34 +238,78 @@ namespace TimelineTools
             }
 
             // Handle pushing marker event notifications for timeline preview scrubbing
-            static double previousTime = 0.0f;
+            static double previousTime = 0;
+            static readonly HashSet<EventMarkerNotification> firedEvents = new(); // store fired events
+            static bool inTimeline = false;
             public static void OnUpdate()
             {
+
+                // Do nothing if no inspected director (not in timeline)
+                if (TimelineEditor.inspectedDirector == null)
+                {
+                    // Clear all events if we were previously in the timeline
+                    if (inTimeline)
+                    {
+                        inTimeline = false;
+                        firedEvents.Clear();
+                        previousTime = 0;
+                    }
+                    return;
+                }
+
                 var director = TimelineEditor.inspectedDirector;
 
                 // Check if scrubbing
-                var isScrub = director != null && director.playableGraph.IsValid() && !director.playableGraph.IsPlaying() && previousTime != director.time;
+                var graph = director.playableGraph;
+                var isScrub = graph.IsValid() && !graph.IsPlaying() && previousTime != director.time;
                 if (!isScrub) return;
 
+                // Keep track of the fact that we entered the timeline to clear state info later
+                inTimeline = true;
+
+                // Clear all events if timeline moved in reverse (and refire them if marked as retroactive)
+                if (previousTime > director.time) firedEvents.Clear();
+
                 // Loop each track
-                for (int i = 0; i < director.playableGraph.GetOutputCount(); i++)
+                for (int i = 0; i < graph.GetOutputCount(); i++)
                 {
+                    SortedList<double, EventMarkerNotification> sortedMarkers = new();
                     // Get track and continue if null
-                    var output = director.playableGraph.GetOutput(i);
+                    var output = graph.GetOutput(i);
                     var playable = output.GetSourcePlayable().GetInput(i);
                     var track = output.GetReferenceObject() as TrackAsset;
                     if (track == null) continue;
 
-                    // Loop each marker of type INotification
-                    var notifications = track.GetMarkers().OfType<Marker>().OfType<EventMarkerNotification>();
-                    foreach (var notification in notifications)
+                    // Loop each marker of type INotification and sort
+                    var markers = track.GetMarkers().OfType<Marker>().OfType<EventMarkerNotification>();
+                    foreach (var marker in markers) sortedMarkers.Add(marker.time, marker);
+
+                    // Iterate the sorted marker list to check for whether events need to be processed
+                    foreach (var marker in sortedMarkers.Values)
                     {
-                        if (notification.emitInEditor)
+                        if (marker.emitInEditor && !firedEvents.Contains(marker))
                         {
-                            // Push notification if time change in range
-                            double time = notification.time;
-                            bool fire = (time >= previousTime && time < director.time) || (time > director.time && time <= previousTime);
-                            if (fire) output.PushNotification(playable, notification);
+                            // Push notification if current time matches notification time
+                            if (director.time == 0 && marker.time == 0 || Math.Abs(director.time - marker.time) < 1e-14)
+                            {
+                                // Add to list of fired events 
+                                firedEvents.Add(marker);
+
+                                // Push event
+                                output.PushNotification(playable, marker);
+                            }
+                            // Push notification if time after notification time and notification hasn't been previously pushed
+                            else if (director.time >= marker.time)
+                            {
+                                // Add to list of fired events 
+                                firedEvents.Add(marker);
+
+                                // Don't emit if timeline reversed and notification not marked as retroactive
+                                if (previousTime > director.time && !marker.retroactive) continue;
+
+                                // Push event
+                                output.PushNotification(playable, marker);
+                            }
                         }
                     }
                 }
@@ -567,8 +610,7 @@ namespace TimelineTools
             // Helper method for retrieving method signatures from a game object
             public static IEnumerable<CallbackDescription> CollectSupportedMethods(GameObject gameObject)
             {
-                if (gameObject == null)
-                    return Enumerable.Empty<CallbackDescription>();
+                if (gameObject == null) return Enumerable.Empty<CallbackDescription>();
 
                 List<CallbackDescription> supportedMethods = new();
                 var behaviours = gameObject.GetComponents<MonoBehaviour>();

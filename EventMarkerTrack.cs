@@ -2,6 +2,7 @@ using System.ComponentModel;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
+using UnityEngine.U2D.Animation;
 
 namespace TimelineTools
 {
@@ -17,10 +18,20 @@ namespace TimelineTools
                 var gameObject = binding as GameObject;
                 if (gameObject != null)
                 {
-                    foreach (var spriteRenderer in gameObject.GetComponentsInChildren<SpriteRenderer>())
-                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_Sprite");
                     foreach (var animator in gameObject.GetComponentsInChildren<Animator>())
                         driver.AddFromName<Animator>(animator.gameObject, "m_Enabled");
+                    foreach (var spriteRenderer in gameObject.GetComponentsInChildren<SpriteRenderer>())
+                    {
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_Enabled");
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_FlipX");
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_FlipY");
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_SortingLayer");
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_SortingOrder");//
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_SpriteSortPoint");
+                        driver.AddFromName<SpriteRenderer>(spriteRenderer.gameObject, "m_Sprite");
+                    }
+                    foreach (var spriteResolver in gameObject.GetComponentsInChildren<SpriteResolver>())
+                        driver.AddFromName<SpriteResolver>(spriteResolver.gameObject, "m_SpriteHash");
                 }
             }
 #endif

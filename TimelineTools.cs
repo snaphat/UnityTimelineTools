@@ -359,7 +359,7 @@ namespace TimelineTools
                     var callback = callbacks[id];
 
                     // if num params, assembly name, or method name don't match continue to next callback
-                    if (arguments.arraySize != callback.parameterTypes.Count || assemblyName.stringValue.Split(",")[0] != callback.assemblyName || methodName.stringValue != callback.methodName)
+                    if (arguments.arraySize != callback.parameterTypes.Count || assemblyName.stringValue.Split(",")[0] != callback.assemblyName.Split(",")[0] || methodName.stringValue != callback.methodName)
                         continue;
 
                     // Iterate each param type
@@ -685,7 +685,14 @@ namespace TimelineTools
                             fullMethodName += ")";
 
                             // Create method description object
-                            var supportedMethod = new CallbackDescription { methodName = method.Name, fullMethodName = fullMethodName, qualifiedMethodName = methodType + "/" + fullMethodName, parameterTypes = parameterTypes, assemblyName = methodType.FullName };
+                            var supportedMethod = new CallbackDescription
+                            {
+                                methodName = method.Name,
+                                fullMethodName = fullMethodName,
+                                qualifiedMethodName = methodType + "/" + fullMethodName,
+                                parameterTypes = parameterTypes,
+                                assemblyName = methodType.FullName
+                            };
                             supportedMethods.Add(supportedMethod);
                         }
                         methodType = methodType.BaseType;
@@ -774,7 +781,7 @@ namespace TimelineTools
                                                    objectValue[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
                                                                                 (objectValue[0], objectValue[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Enum)
-                                (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                                (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
 
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }

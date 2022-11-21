@@ -35,7 +35,7 @@ namespace TimelineTools
                         else if (argument.parameterType == ParameterType.String)
                             arguments[i] = argument.String;
                         else if (argument.parameterType == ParameterType.Enum)
-                            arguments[i] = Enum.ToObject(Type.GetType(argument.String), argument.Int);
+                            arguments[i] = Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int);
 
                         types[i] = arguments[i].GetType();
                     }

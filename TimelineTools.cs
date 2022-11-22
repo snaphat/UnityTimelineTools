@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEditor;
-using UnityEditor.Timeline;
-using UnityEditor.Timeline.Actions;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using Object = UnityEngine.Object;
 
 #if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.Timeline;
+using UnityEditor.Timeline.Actions;
+using UnityEditorInternal;
 // Adds support for inserting and cutting frames in all tracks and infinite clips within the timeline.
 namespace TimelineTools
 {

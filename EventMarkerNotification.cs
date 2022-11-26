@@ -17,7 +17,8 @@ namespace TimelineTools
             Float,
             String,
             Object,
-            Enum
+            Enum,
+            Playable
         }
 
         [Serializable]

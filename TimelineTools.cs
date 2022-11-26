@@ -671,6 +671,10 @@ namespace TimelineTools
                         intProperty.intValue = (int)(object)EditorGUI.EnumPopup(rect, (Enum)Enum.ToObject(type, intProperty.intValue)); // Parse as enum type
                         stringProperty.stringValue = type.FullName; // store full type name
                     }
+                    else if (type == typeof(Playable))
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Playable;
+                    }
 
                     // Update field position
                     rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
@@ -722,6 +726,8 @@ namespace TimelineTools
                                     strType = "Object";
                                 else if (parameter.ParameterType.IsEnum && Enum.GetUnderlyingType(parameter.ParameterType) == typeof(int))
                                     strType = parameter.ParameterType.Name; // use underlying typename for fullanme string
+                                else if (parameter.ParameterType == typeof(Playable))
+                                    strType = "Playable";
                                 else
                                     validMethod = false;
 
@@ -834,6 +840,8 @@ namespace TimelineTools
                                                                                 (objectValue[0], objectValue[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Enum)
                                 (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                            else if (argument.parameterType == ParameterType.Playable)
+                                (arg, type, color) = ("Origin", "Playable", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
 
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }

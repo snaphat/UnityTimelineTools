@@ -841,7 +841,7 @@ namespace TimelineTools
                             else if (argument.parameterType == ParameterType.Enum)
                                 (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Playable)
-                                (arg, type, color) = ("Origin", "Playable", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                                (arg, type, color) = ("notification", "Playable", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
 
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }

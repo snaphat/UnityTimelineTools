@@ -32,6 +32,14 @@ namespace TimelineTools
                     }
                     foreach (var spriteResolver in gameObject.GetComponentsInChildren<SpriteResolver>())
                         driver.AddFromName<SpriteResolver>(spriteResolver.gameObject, "m_SpriteHash");
+                    foreach (var audioSource in gameObject.GetComponentsInChildren<AudioSource>()) 
+                    {
+                        driver.AddFromName<AudioSource>(audioSource.gameObject, "m_audioClip");
+                        driver.AddFromName<AudioSource>(audioSource.gameObject, "m_Enabled");
+                        driver.AddFromName<AudioSource>(audioSource.gameObject, "m_Volume");
+                        driver.AddFromName<AudioSource>(audioSource.gameObject, "m_Pitch");
+                        driver.AddFromName<AudioSource>(audioSource.gameObject, "Loop");
+                    }
                 }
             }
 #endif

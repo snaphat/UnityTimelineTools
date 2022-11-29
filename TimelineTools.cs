@@ -678,7 +678,9 @@ namespace TimelineTools
                     else if (type == typeof(object) || type.IsSubclassOf(typeof(Object)))
                     {
                         m_ParameterType.enumValueIndex = (int)ParameterType.Object;
-                        EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("Object"), GUIContent.none);
+                        var objectProperty = argumentProperty.FindPropertyRelative("Object");
+                        var obj = EditorGUI.ObjectField(rect, objectProperty.exposedReferenceValue, type, true);
+                        objectProperty.exposedReferenceValue = obj;
                     }
                     else if (type.IsEnum)
                     {

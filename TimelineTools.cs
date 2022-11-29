@@ -415,6 +415,7 @@ namespace TimelineTools
                         continue;
 
                     // Iterate each param type
+                    bool isMatch = true;
                     int i;
                     for (i = 0; i < callback.parameterTypes.Count; i++)
                     {
@@ -425,22 +426,28 @@ namespace TimelineTools
                         var type2 = m_ParameterType.enumValueIndex;
 
                         // break early if no match
-                        if (type == typeof(bool) && type2 != (int)ParameterType.Bool)
-                            break;
-                        else if (type == typeof(int) && type2 != (int)ParameterType.Int)
-                            break;
-                        else if (type == typeof(float) && type2 != (int)ParameterType.Float)
-                            break;
-                        else if (type == typeof(string) && type2 != (int)ParameterType.String)
-                            break;
-                        else if ((type == typeof(object) || type.IsSubclassOf(typeof(Object))) && type2 != (int)ParameterType.Object)
-                            break;
-                        else if (type.IsEnum && (type2 != (int)ParameterType.Enum || argumentProperty.FindPropertyRelative("String").stringValue.Split(",")[0] != type.FullName))
-                            break;
+                        if (type == typeof(bool) && type2 == (int)ParameterType.Bool)
+                            continue;
+                        else if (type == typeof(int) && type2 == (int)ParameterType.Int)
+                            continue;
+                        else if (type == typeof(float) && type2 == (int)ParameterType.Float)
+                            continue;
+                        else if (type == typeof(string) && type2 == (int)ParameterType.String)
+                            continue;
+                        else if (type == typeof(Playable) && type2 == (int)ParameterType.Playable) // handle before object
+                            continue;
+                        else if (type == typeof(EventMarkerNotification) && type2 == (int)ParameterType.EventMarkerNotification) // handle before object
+                            continue;
+                        else if ((type == typeof(object) || type.IsSubclassOf(typeof(Object))) && type2 == (int)ParameterType.Object)
+                            continue;
+                        else if (type.IsEnum && (type2 == (int)ParameterType.Enum || argumentProperty.FindPropertyRelative("String").stringValue.Split(",")[0] == type.FullName))
+                            continue;
+                        isMatch = false;
+                        break;
                     }
 
                     // if count match then method matches so return id
-                    if (i == callback.parameterTypes.Count) return id;
+                    if (isMatch) return id;
                 }
                 return -1;
             }
@@ -658,6 +665,16 @@ namespace TimelineTools
                         m_ParameterType.enumValueIndex = (int)ParameterType.String;
                         EditorGUI.PropertyField(rect, argumentProperty.FindPropertyRelative("String"), GUIContent.none);
                     }
+                    else if (type == typeof(Playable)) // handle before object
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Playable;
+                        continue;
+                    }
+                    else if (type == typeof(EventMarkerNotification)) // handle before object
+                    {
+                        m_ParameterType.enumValueIndex = (int)ParameterType.EventMarkerNotification;
+                        continue;
+                    }
                     else if (type == typeof(object) || type.IsSubclassOf(typeof(Object)))
                     {
                         m_ParameterType.enumValueIndex = (int)ParameterType.Object;
@@ -671,13 +688,9 @@ namespace TimelineTools
                         intProperty.intValue = (int)(object)EditorGUI.EnumPopup(rect, (Enum)Enum.ToObject(type, intProperty.intValue)); // Parse as enum type
                         stringProperty.stringValue = type.FullName; // store full type name
                     }
-                    else if (type == typeof(Playable))
-                    {
-                        m_ParameterType.enumValueIndex = (int)ParameterType.Playable;
-                    }
 
                     // Update field position
-                    rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
+                     rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
                 }
             }
 
@@ -722,12 +735,14 @@ namespace TimelineTools
                                     strType = "float";
                                 else if (parameter.ParameterType == typeof(string))
                                     strType = "string";
+                                else if (parameter.ParameterType == typeof(Playable)) // handle before object
+                                    strType = "Playable";
+                                else if (parameter.ParameterType == typeof(EventMarkerNotification)) // handle before object
+                                    strType = "EventMarkerNotification";
                                 else if (parameter.ParameterType == typeof(object) || parameter.ParameterType.IsSubclassOf(typeof(Object)))
                                     strType = "Object";
                                 else if (parameter.ParameterType.IsEnum && Enum.GetUnderlyingType(parameter.ParameterType) == typeof(int))
                                     strType = parameter.ParameterType.Name; // use underlying typename for fullanme string
-                                else if (parameter.ParameterType == typeof(Playable))
-                                    strType = "Playable";
                                 else
                                     validMethod = false;
 
@@ -834,14 +849,16 @@ namespace TimelineTools
                                 (arg, type, color) = (argument.Float.ToString(), "float", EditorGUIUtility.isProSkin ? "#b5cea8" : "#098658");
                             else if (argument.parameterType == ParameterType.String)
                                 (arg, type, color) = ("\"" + argument.String + "\"", "string", EditorGUIUtility.isProSkin ? "#ce9178" : "#a31515");
+                            else if (argument.parameterType == ParameterType.Playable)
+                                (arg, type, color) = ("playable", "Playable", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
+                            else if (argument.parameterType == ParameterType.EventMarkerNotification)
+                                (arg, type, color) = ("notification", "EventMarkerNotification", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Object)
                                 (arg, type, color) = objectValue[0] == "null" ? ("None", "Object", "#ff0000") :
                                                    objectValue[0].Length > 48 ? ("...", "Object", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99") :
                                                                                 (objectValue[0], objectValue[1], EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
                             else if (argument.parameterType == ParameterType.Enum)
                                 (arg, type, color) = (Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int).ToString(), "Enum", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
-                            else if (argument.parameterType == ParameterType.Playable)
-                                (arg, type, color) = ("notification", "Playable", EditorGUIUtility.isProSkin ? "#4ec9b0" : "#267f99");
 
                             argumentText += string.Format(richArgumentFormat, arg, type, color);
                         }

@@ -38,6 +38,8 @@ namespace TimelineTools
                             arguments[i] = Enum.ToObject(Type.GetType(argument.String + ",Assembly-CSharp"), argument.Int);
                         else if (argument.parameterType == ParameterType.Playable)
                             arguments[i] = origin;
+                        else if (argument.parameterType == ParameterType.EventMarkerNotification)
+                            arguments[i] = message;
 
                         types[i] = arguments[i].GetType();
                     }

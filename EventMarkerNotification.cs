@@ -18,7 +18,8 @@ namespace TimelineTools
             String,
             Object,
             Enum,
-            Playable
+            Playable,
+            EventMarkerNotification
         }
 
         [Serializable]

@@ -627,8 +627,13 @@ namespace TimelineTools
             // Create UI elements for the given parameter types of a methods arguments
             void DrawArguments(Rect rect, SerializedProperty element, CallbackDescription callbackDescription)
             {
+                // Find the amount of user enterable arguments to compute UI entry box sizes
+                int enterableArgCount = 0;
+                foreach(var type in callbackDescription.parameterTypes)
+                    if (type != typeof(Playable) && type != typeof(EventMarkerNotification)) enterableArgCount++;
+
                 // Compute the rect for the method parameters based off of the count
-                var paramWidth = (rect.width - dropDownComputedSize - 10) / callbackDescription.parameterTypes.Count;
+                var paramWidth = (rect.width - dropDownComputedSize - 10) / enterableArgCount;
                 rect = new Rect(rect.x + dropDownComputedSize + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
 
                 // Grab the arguments property

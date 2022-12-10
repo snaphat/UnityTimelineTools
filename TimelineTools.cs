@@ -331,7 +331,7 @@ namespace TimelineTools
 
                 // Check if scrubbing
                 var graph = director.playableGraph;
-                var isScrub = graph.IsValid() && !graph.IsPlaying() && previousTime != director.time;
+                var isScrub = !Application.isPlaying && graph.IsValid() && !graph.IsPlaying() && previousTime != director.time;
                 if (!isScrub) return;
 
                 // Keep track of the fact that we entered the timeline to clear state info later
@@ -629,7 +629,7 @@ namespace TimelineTools
             {
                 // Find the amount of user enterable arguments to compute UI entry box sizes
                 int enterableArgCount = 0;
-                foreach(var type in callbackDescription.parameterTypes)
+                foreach (var type in callbackDescription.parameterTypes)
                     if (type != typeof(Playable) && type != typeof(EventMarkerNotification)) enterableArgCount++;
 
                 // Compute the rect for the method parameters based off of the count
@@ -697,7 +697,7 @@ namespace TimelineTools
                     }
 
                     // Update field position
-                     rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
+                    rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
                 }
             }
 

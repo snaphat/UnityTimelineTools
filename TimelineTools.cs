@@ -707,7 +707,7 @@ namespace TimelineTools
                 if (gameObject == null) return Enumerable.Empty<CallbackDescription>();
 
                 List<CallbackDescription> supportedMethods = new();
-                var behaviours = gameObject.GetComponents<MonoBehaviour>();
+                var behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>();
 
                 foreach (var behaviour in behaviours)
                 {

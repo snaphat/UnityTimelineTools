@@ -44,19 +44,10 @@ namespace TimelineTools
                         types[i] = arguments[i].GetType();
                     }
 
-                    try
-                    {
-                        // Call method
-                        var behaviour = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName + ",Assembly-CSharp")) as MonoBehaviour;
-                        MethodInfo methodInfo = behaviour.GetType().GetMethod(callback.methodName, types);
-                        methodInfo.Invoke(behaviour, arguments);
-                    }
-                    catch (Exception exception)
-                    {
-                        var errorMessage = string.Format("Event Marker Exception:\nAssembly Name: {0}\nMethodname: {1}\nType: {2}\nException: {3}",
-                        callback.assemblyName, callback.methodName, Type.GetType(callback.assemblyName + ",Assembly-CSharp"), exception);
-                        Debug.LogError(errorMessage);
-                    }
+                    // Call method
+                    var behaviour = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName + ",Assembly-CSharp")) as MonoBehaviour;
+                    MethodInfo methodInfo = behaviour.GetType().GetMethod(callback.methodName, types);
+                    methodInfo.Invoke(behaviour, arguments);
                 }
             }
         }

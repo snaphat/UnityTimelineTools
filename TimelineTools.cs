@@ -717,7 +717,7 @@ namespace TimelineTools
                     var methodType = behaviour.GetType();
                     while (methodType != typeof(MonoBehaviour) && methodType != null)
                     {
-                        var methods = methodType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        var methods = methodType.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                         foreach (var method in methods)
                         {
                             // don't support adding built in method names

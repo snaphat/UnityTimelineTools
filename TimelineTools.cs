@@ -560,7 +560,7 @@ namespace TimelineTools
             void DrawMethodAndArguments(Rect rect, int index, bool isActive, bool isFocused)
             {
                 // Compute first field position
-                Rect line = new(rect.x, rect.y + 5, rect.width, EditorGUIUtility.singleLineHeight - 2);
+                Rect line = new(rect.x, rect.y + 4, rect.width, EditorGUIUtility.singleLineHeight);
 
                 // Retrieve element (elements are added when + is clicked in reorderable list UI)
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);

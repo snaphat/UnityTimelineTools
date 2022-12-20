@@ -468,7 +468,6 @@ namespace TimelineTools
 
             ReorderableList list;
             List<CallbackDescription> supportedMethods;
-            float dropDownComputedSize;
 
             // Get serialized object properties (for UI)
             public void OnEnable()
@@ -529,39 +528,11 @@ namespace TimelineTools
 
                         list = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
                         {
+                            elementHeightCallback = GetElementHeight,
                             drawElementCallback = DrawMethodAndArguments,
                             drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
                         };
                     }
-
-                    // Find longest method name for computing space needed for reorderable list visual layout
-                    var longestMethodName = "";
-                    for (int i = 0; i < list.serializedProperty.arraySize; i++)
-                    {
-                        // Retrieve element (elements are added when + is clicked in reorderable list UI)
-                        SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(i);
-
-                        // Retrieve element properties
-                        SerializedProperty m_AssemblyName = element.FindPropertyRelative("assemblyName");
-                        SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
-                        SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
-
-                        // Get current method ID (order in list)
-                        var selectedMethodId = supportedMethods.FindMethod(m_AssemblyName, m_MethodName, m_Arguments);
-
-                        // If no method use default otherwise use method name + parameters
-                        var fullName = selectedMethodId < 0 ? "No method" : supportedMethods[selectedMethodId].fullMethodName;
-
-                        // Update longest match
-                        if (longestMethodName.Length < fullName.Length) longestMethodName = fullName;
-                    }
-
-                    // Compute how large the button needs to be.
-                    GUIContent content = new(longestMethodName);
-                    GUIStyle style = EditorStyles.popup;
-                    style.richText = true;
-                    Vector2 size = style.CalcSize(content);
-                    dropDownComputedSize = size.x + 5;
 
                     // Layout reorderable list
                     list.DoLayoutList();
@@ -571,9 +542,26 @@ namespace TimelineTools
                 }
             }
 
+            // Height determiner for a given element
+            float GetElementHeight(int index)
+            {
+                // Retrieve element (elements are added when + is clicked in reorderable list UI)
+                SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+
+                // Retrieve element properties
+                SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
+
+                // Determine height
+                if (m_Arguments.arraySize == 0) return EditorGUIUtility.singleLineHeight + 10;
+                else return EditorGUIUtility.singleLineHeight * 2 + 10;
+            }
+
             // Draw drawer entry for given element
             void DrawMethodAndArguments(Rect rect, int index, bool isActive, bool isFocused)
             {
+                // Compute first field position
+                Rect line = new(rect.x, rect.y + 5, rect.width, EditorGUIUtility.singleLineHeight - 2);
+
                 // Retrieve element (elements are added when + is clicked in reorderable list UI)
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
 
@@ -598,7 +586,10 @@ namespace TimelineTools
 
                     // Store old selected method id case it isn't changed
                     var oldSelectedMethodId = selectedMethodId;
-                    selectedMethodId = EditorGUI.Popup(new Rect(rect.x, rect.y, dropDownComputedSize, EditorGUIUtility.singleLineHeight), 0, dropdownList.ToArray(), style);
+                    selectedMethodId = EditorGUI.Popup(line, 0, dropdownList.ToArray(), style);
+
+                    // Update field position
+                    line.y += EditorGUIUtility.singleLineHeight + 2;
 
                     // Normalize selection
                     if (selectedMethodId == 0)
@@ -619,7 +610,7 @@ namespace TimelineTools
                     m_MethodName.stringValue = callbackDescription.methodName;
 
                     // Draw each argument
-                    DrawArguments(rect, element, callbackDescription);
+                    DrawArguments(line, element, callbackDescription);
                 }
             }
 
@@ -632,8 +623,8 @@ namespace TimelineTools
                     if (type != typeof(Playable) && type != typeof(EventMarkerNotification)) enterableArgCount++;
 
                 // Compute the rect for the method parameters based off of the count
-                var paramWidth = (rect.width - dropDownComputedSize - 10) / enterableArgCount;
-                rect = new Rect(rect.x + dropDownComputedSize + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
+                var paramWidth = (rect.width - 10) / enterableArgCount;
+                rect.width = paramWidth;
 
                 // Grab the arguments property
                 SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
@@ -696,7 +687,7 @@ namespace TimelineTools
                     }
 
                     // Update field position
-                    rect = new Rect(rect.x + paramWidth + 5, rect.y, paramWidth, EditorGUIUtility.singleLineHeight);
+                    rect.x += paramWidth + 5;
                 }
             }
 

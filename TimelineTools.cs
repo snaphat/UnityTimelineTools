@@ -397,7 +397,6 @@ namespace TimelineTools
             public string fullMethodName;      // The name of the method with parameters: e.g.: Foo(arg_type)
             public string qualifiedMethodName; // The name of the class + method + parameters: e.g. Bar.Foo(arg_type)
             public List<Type> parameterTypes;  // none, bool, int, float, string, Object, Enum
-            public bool isOverload;            // Overloads not handable so need detection
         }
 
         // For uniquely identifying Stored SerializedProperty methods with found CallbackDescription methods using assembly name, method name, and argument types

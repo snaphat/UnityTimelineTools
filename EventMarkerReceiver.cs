@@ -45,7 +45,7 @@ namespace TimelineTools
                     }
 
                     // Call method
-                    var component = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName + ",Assembly-CSharp"));
+                    var component = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName));
                     MethodInfo methodInfo = component.GetType().GetMethod(callback.methodName, types);
                     methodInfo.Invoke(component, arguments);
                 }

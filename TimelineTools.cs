@@ -697,7 +697,7 @@ namespace TimelineTools
                 if (gameObject == null) return Enumerable.Empty<CallbackDescription>();
 
                 List<CallbackDescription> supportedMethods = new();
-                var components = gameObject.GetComponentsInChildren<MonoBehaviour>();
+                var components = gameObject.GetComponentsInChildren<Component>();
 
                 foreach (var component in components)
                 {
@@ -705,7 +705,7 @@ namespace TimelineTools
                         continue;
 
                     var componentType = component.GetType();
-                    while (componentType != typeof(MonoBehaviour) && componentType != null)
+                    while (componentType != typeof(Component) && componentType != null)
                     {
                         var methods = componentType.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                         foreach (var method in methods)
@@ -754,6 +754,9 @@ namespace TimelineTools
                             // Finish the full name signature
                             fullMethodName += ")";
 
+                            // Collect the first two pieces of the FQN
+                            var assemblyName = componentType.FullName + "," + componentType.Module.Assembly.GetName().Name;
+
                             // Create method description object
                             var supportedMethod = new CallbackDescription
                             {
@@ -761,7 +764,7 @@ namespace TimelineTools
                                 fullMethodName = fullMethodName,
                                 qualifiedMethodName = componentType + "/" + fullMethodName[0] + "/" + fullMethodName,
                                 parameterTypes = parameterTypes,
-                                assemblyName = componentType.FullName
+                                assemblyName = assemblyName
                             };
                             supportedMethods.Add(supportedMethod);
                         }

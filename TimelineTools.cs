@@ -697,17 +697,17 @@ namespace TimelineTools
                 if (gameObject == null) return Enumerable.Empty<CallbackDescription>();
 
                 List<CallbackDescription> supportedMethods = new();
-                var behaviours = gameObject.GetComponentsInChildren<MonoBehaviour>();
+                var components = gameObject.GetComponentsInChildren<MonoBehaviour>();
 
-                foreach (var behaviour in behaviours)
+                foreach (var component in components)
                 {
-                    if (behaviour == null)
+                    if (component == null)
                         continue;
 
-                    var methodType = behaviour.GetType();
-                    while (methodType != typeof(MonoBehaviour) && methodType != null)
+                    var componentType = component.GetType();
+                    while (componentType != typeof(MonoBehaviour) && componentType != null)
                     {
-                        var methods = methodType.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        var methods = componentType.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                         foreach (var method in methods)
                         {
                             // don't support adding built in method names
@@ -759,13 +759,13 @@ namespace TimelineTools
                             {
                                 methodName = method.Name,
                                 fullMethodName = fullMethodName,
-                                qualifiedMethodName = methodType + "/" + fullMethodName[0] + "/" + fullMethodName,
+                                qualifiedMethodName = componentType + "/" + fullMethodName[0] + "/" + fullMethodName,
                                 parameterTypes = parameterTypes,
-                                assemblyName = methodType.FullName
+                                assemblyName = componentType.FullName
                             };
                             supportedMethods.Add(supportedMethod);
                         }
-                        methodType = methodType.BaseType;
+                        componentType = componentType.BaseType;
                     }
                 }
 

@@ -581,8 +581,9 @@ namespace TimelineTools
 
                     // Create dropdownlist with 'pseudo entries' for the currently selected method at the top of the list followed by a blank line
                     var dropdownList = supportedMethods.Select(i => i.qualifiedMethodName).ToList();
+                    var selectedMethod = supportedMethods[selectedMethodId];
                     dropdownList.Insert(0, ""); // insert line
-                    dropdownList.Insert(0, selectedMethodId > -1 ? supportedMethods[selectedMethodId].fullMethodName : "No method");
+                    dropdownList.Insert(0, selectedMethodId > -1 ? selectedMethod.assemblyName.Split(",")[0] + "." + selectedMethod.fullMethodName : "No method");
 
                     // Store old selected method id case it isn't changed
                     var oldSelectedMethodId = selectedMethodId;
@@ -819,7 +820,7 @@ namespace TimelineTools
 
                 // Tooltip format
                 string richMethodFormat = EditorGUIUtility.isProSkin ?
-                "<b><color=#dcdcaa>{0}</color><color=#ffd700>(</color>{1}<color=#ffd700>)</color></b>\n" : "<b><color=#795e26>{0}</color><color=#0431fa>(</color>{1}<color=#0431fa>)</color></b>\n";
+                "<b><color=#569cd6>{0}</color><color=#c586c0>.</color><color=#dcdcaa>{1}</color><color=#ffd700>(</color>{2}<color=#ffd700>)</color></b>\n" : "<b><color=#0000ff>{0}</color><color=#319331>.</color><color=#795e26>{1}</color><color=#0431fa>(</color>{2}<color=#0431fa>)</color></b>\n";
                 string richArgumentFormat = EditorGUIUtility.isProSkin ?
                 "<color={2}>{0}</color> <color=#c586c0>(</color><color=#569cd6>{1}</color><color=#c586c0>)</color>" : "<color={2}>{0}</color> <color=#319331>(</color><color=#0000ff>{1}</color><color=#319331>)</color>";
 
@@ -864,7 +865,7 @@ namespace TimelineTools
                         }
 
                         // Format and trim string if no args
-                        tooltip += string.Format(richMethodFormat, callback.methodName, argumentText);
+                        tooltip += string.Format(richMethodFormat, callback.assemblyName.Split(",")[0], callback.methodName, argumentText);
                     }
                 }
 

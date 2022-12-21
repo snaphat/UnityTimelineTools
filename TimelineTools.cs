@@ -583,7 +583,7 @@ namespace TimelineTools
 
                     // Create dropdownlist with 'pseudo entries' for the currently selected method at the top of the list followed by a blank line
                     var dropdownList = supportedMethods.Select(i => i.qualifiedMethodName).ToList();
-                    var selectedMethod = supportedMethods[selectedMethodId];
+                    CallbackDescription selectedMethod = selectedMethodId > -1 ? supportedMethods[selectedMethodId] : null;
                     dropdownList.Insert(0, ""); // insert line
                     dropdownList.Insert(0, selectedMethodId > -1 ? selectedMethod.assemblyName.Split(",")[0] + "." + selectedMethod.fullMethodName : "No method");
 

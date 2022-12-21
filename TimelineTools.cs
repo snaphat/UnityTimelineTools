@@ -6,6 +6,8 @@ using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using Object = UnityEngine.Object;
+using InspectorGadgets.Editor;
+using Unity.VisualScripting;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -677,6 +679,11 @@ namespace TimelineTools
                         var objectProperty = argumentProperty.FindPropertyRelative("Object");
                         var obj = EditorGUI.ObjectField(rect, objectProperty.exposedReferenceValue, type, true);
                         objectProperty.exposedReferenceValue = obj;
+                        if (obj is GameObject x && x.scene.name == null)
+                        {
+                            var exposedName = objectProperty.FindPropertyRelative("exposedName");
+                            exposedName.stringValue = null;
+                        }
                     }
                     else if (type.IsEnum)
                     {

@@ -714,7 +714,7 @@ namespace TimelineTools
                             if (method.Name == "Main" && method.Name == "Start" && method.Name == "Awake" && method.Name == "Update") continue;
 
                             var parameters = method.GetParameters();    // get parameters
-                            List<Type> parameterTypes = new(); // create empty parameter list
+                            List<Type> parameterTypes = new();          // create empty parameter list
                             string fullMethodName = method.Name + "(";  // start full method name signature
                             bool validMethod = true;                    // mark the method as valid until proven otherwise
 

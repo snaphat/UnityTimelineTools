@@ -2,7 +2,7 @@
 Unity Plugin that adds the following features to timeline:
 1. Frame Cutting and Insertion
 2. Timeline and Animation View Synchronization
-3. Bound Object Method Calls
+3. Multi-parameter Bound Object Method Calls
 
 ## Frame Cutting and Insertion
 Cut and insert frames to the overall timeline including infinite animation tracks.

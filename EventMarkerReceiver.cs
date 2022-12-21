@@ -45,9 +45,9 @@ namespace TimelineTools
                     }
 
                     // Call method
-                    var behaviour = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName + ",Assembly-CSharp")) as MonoBehaviour;
-                    MethodInfo methodInfo = behaviour.GetType().GetMethod(callback.methodName, types);
-                    methodInfo.Invoke(behaviour, arguments);
+                    var component = gameObject.GetComponentInChildren(Type.GetType(callback.assemblyName + ",Assembly-CSharp"));
+                    MethodInfo methodInfo = component.GetType().GetMethod(callback.methodName, types);
+                    methodInfo.Invoke(component, arguments);
                 }
             }
         }

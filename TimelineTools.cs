@@ -683,21 +683,13 @@ namespace TimelineTools
                         var obj = EditorGUI.ObjectField(rect, objectProperty.exposedReferenceValue, type, true);
                         if (objectProperty.exposedReferenceValue != obj)
                         {
-                            if (obj == null) // none object
-                            {
-                                exposedName.stringValue = "";
-                                defaultValue.objectReferenceValue = null;
-                            }
-                            else if (obj is GameObject x && x.scene.name == null) // non-scene object
-                            {
-                                exposedName.stringValue = "";
-                                defaultValue.objectReferenceValue = obj;
-                            }
-                            else // scene / exposed object
-                            {
-                                defaultValue.objectReferenceValue = null;
-                                objectProperty.exposedReferenceValue = obj;
-                            }
+                            TimelineEditor.inspectedDirector.ClearReferenceValue(exposedName.stringValue);
+                            exposedName.stringValue = "";
+                            defaultValue.objectReferenceValue = null;
+                            if (obj is GameObject x && x.scene.name != null)
+                                objectProperty.exposedReferenceValue = obj;  // scene / exposed object
+                            else
+                                defaultValue.objectReferenceValue = obj;     // prefab-nonscene object
                         }
                     }
                     else if (type.IsEnum)

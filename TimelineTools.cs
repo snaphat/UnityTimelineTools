@@ -6,8 +6,6 @@ using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
 using Object = UnityEngine.Object;
-using InspectorGadgets.Editor;
-using Unity.VisualScripting;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -521,6 +519,11 @@ namespace TimelineTools
                     GameObject curGameObject = null;
                     if (boundObj as GameObject != null) curGameObject = (GameObject)boundObj;
                     else if (boundObj as Component != null) curGameObject = ((Component)boundObj).gameObject;
+
+                    // Workaround Unity Timeline bug where active context is lost on save which breaks the inspector for
+                    // Object Fields with Exposed References
+                    if (Selection.activeContext == null)
+                        Selection.SetActiveObjectWithContext(target, TimelineEditor.inspectedDirector); // Re-set the context
 
                     // Only rebuild list if something as changed (it isn't draggable otherwise)
                     if (list == null || storedGameObject != curGameObject)

@@ -675,14 +675,29 @@ namespace TimelineTools
                     }
                     else if (type == typeof(object) || type.IsSubclassOf(typeof(Object)))
                     {
-                        m_ParameterType.enumValueIndex = (int)ParameterType.Object;
                         var objectProperty = argumentProperty.FindPropertyRelative("Object");
+                        var exposedName = objectProperty.FindPropertyRelative("exposedName");
+                        var defaultValue = objectProperty.FindPropertyRelative("defaultValue");
+
+                        m_ParameterType.enumValueIndex = (int)ParameterType.Object;
                         var obj = EditorGUI.ObjectField(rect, objectProperty.exposedReferenceValue, type, true);
-                        objectProperty.exposedReferenceValue = obj;
-                        if (obj is GameObject x && x.scene.name == null)
+                        if (objectProperty.exposedReferenceValue != obj)
                         {
-                            var exposedName = objectProperty.FindPropertyRelative("exposedName");
-                            exposedName.stringValue = null;
+                            if (obj == null) // none object
+                            {
+                                exposedName.stringValue = "";
+                                defaultValue.objectReferenceValue = null;
+                            }
+                            else if (obj is GameObject x && x.scene.name == null) // non-scene object
+                            {
+                                exposedName.stringValue = "";
+                                defaultValue.objectReferenceValue = obj;
+                            }
+                            else // scene / exposed object
+                            {
+                                defaultValue.objectReferenceValue = null;
+                                objectProperty.exposedReferenceValue = obj;
+                            }
                         }
                     }
                     else if (type.IsEnum)

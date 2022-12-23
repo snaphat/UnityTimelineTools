@@ -1,4 +1,4 @@
-# UnityTimelineTools
+# <img src=Resources/EventMarkerIcon.png width=32> UnityTimelineTools
 Unity Plugin that adds the following features to timeline:
 1. Frame Cutting and Insertion
 2. Timeline and Animation View Synchronization

@@ -798,7 +798,7 @@ namespace TimelineTools
             }
         }
 
-        // Editor used by the Timeline window to customize the appearance of an TestMarker
+        // Editor used by the Timeline window to customize the appearance of a marker
         [CustomTimelineEditor(typeof(EventMarkerNotification))]
         public class EventMarkerOverlay : MarkerEditor
         {

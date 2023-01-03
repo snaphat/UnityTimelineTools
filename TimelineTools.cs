@@ -528,6 +528,10 @@ namespace TimelineTools
                     // Only rebuild list if something as changed (it isn't draggable otherwise)
                     if (list == null || storedGameObject != curGameObject)
                     {
+                        // Warning -- event markers should only be used in event marker tracks for correct timeline preview behaviour
+                        if (marker.parent is not EventMarkerTrack)
+                            Debug.LogWarning("<color=red>TimelineTools: Add Event Marker to an Event Marker Track</color>");
+ 
                         storedGameObject = curGameObject;
                         supportedMethods = CollectSupportedMethods(storedGameObject).ToList();
 

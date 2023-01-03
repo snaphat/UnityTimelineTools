@@ -16,6 +16,7 @@ namespace TimelineTools
 {
     namespace Events
     {
+        [TrackColor(1f, 0.89f, 0.8f)]
         [TrackBindingType(typeof(EventMarkerReceiver)), DisplayName("Event Marker Track")]
         public class EventMarkerTrack : TrackAsset
         {

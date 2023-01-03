@@ -16,7 +16,7 @@ namespace TimelineTools
 {
     namespace Events
     {
-        [TrackBindingType(typeof(GameObject)), DisplayName("Event Marker Track")]
+        [TrackBindingType(typeof(EventMarkerReceiver)), DisplayName("Event Marker Track")]
         public class EventMarkerTrack : TrackAsset
         {
 #if UNITY_EDITOR

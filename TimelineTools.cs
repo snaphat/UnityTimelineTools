@@ -456,6 +456,18 @@ namespace TimelineTools
         [CustomEditor(typeof(EventMarkerNotification)), CanEditMultipleObjects]
         public class EventMarkerInspector : Editor
         {
+            // Cached data for speeding up editor
+            class EditorCache
+            {
+                public int selectedMethodId; // selected id for a given reorderable list entry
+                public string[] dropdown; // dropdown for for a given reorderable list entry
+            }
+            Dictionary<int, EditorCache> editorCache;
+            GameObject cachedGameObject; // bound game object
+            List<CallbackDescription> cachedSupportedMethods; // supported methods for the given game object
+            ReorderableList cachedMethodList; // selected methods in a reorderable list
+
+            // Properties
             SerializedProperty m_Time;
             SerializedProperty m_Callbacks;
             SerializedProperty m_Retroactive;
@@ -463,11 +475,6 @@ namespace TimelineTools
             SerializedProperty m_EmitInEditor;
             SerializedProperty m_Color;
             SerializedProperty m_ShowLineOverlay;
-
-            GameObject storedGameObject;
-
-            ReorderableList list;
-            List<CallbackDescription> supportedMethods;
 
             // Get serialized object properties (for UI)
             public void OnEnable()
@@ -526,25 +533,26 @@ namespace TimelineTools
                         Selection.SetActiveObjectWithContext(target, TimelineEditor.inspectedDirector); // Re-set the context
 
                     // Only rebuild list if something as changed (it isn't draggable otherwise)
-                    if (list == null || storedGameObject != curGameObject)
+                    if (cachedMethodList == null || cachedGameObject != curGameObject)
                     {
                         // Warning -- event markers should only be used in event marker tracks for correct timeline preview behaviour
                         if (marker.parent is not EventMarkerTrack)
                             Debug.LogWarning("<color=red>TimelineTools: Add Event Marker to an Event Marker Track</color>");
- 
-                        storedGameObject = curGameObject;
-                        supportedMethods = CollectSupportedMethods(storedGameObject).ToList();
 
-                        list = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
+                        cachedGameObject = curGameObject;
+                        cachedSupportedMethods = CollectSupportedMethods(cachedGameObject).ToList();
+
+                        cachedMethodList = new ReorderableList(serializedObject, m_Callbacks, true, true, true, true)
                         {
                             elementHeightCallback = GetElementHeight,
                             drawElementCallback = DrawMethodAndArguments,
                             drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
                         };
+                        editorCache = new();
                     }
 
                     // Layout reorderable list
-                    list.DoLayoutList();
+                    cachedMethodList.DoLayoutList();
 
                     // apply changes
                     if (changeScope.changed) serializedObject.ApplyModifiedProperties();
@@ -555,7 +563,7 @@ namespace TimelineTools
             float GetElementHeight(int index)
             {
                 // Retrieve element (elements are added when + is clicked in reorderable list UI)
-                SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+                SerializedProperty element = cachedMethodList.serializedProperty.GetArrayElementAtIndex(index);
 
                 // Retrieve element properties
                 SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
@@ -572,15 +580,29 @@ namespace TimelineTools
                 Rect line = new(rect.x, rect.y + 4, rect.width, EditorGUIUtility.singleLineHeight);
 
                 // Retrieve element (elements are added when + is clicked in reorderable list UI)
-                SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
+                SerializedProperty element = cachedMethodList.serializedProperty.GetArrayElementAtIndex(index);
 
                 // Retrieve element properties
                 SerializedProperty m_AssemblyName = element.FindPropertyRelative("assemblyName");
                 SerializedProperty m_MethodName = element.FindPropertyRelative("methodName");
                 SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
 
-                // Get current method ID based off of stored name (index really)
-                var selectedMethodId = supportedMethods.FindMethod(m_AssemblyName, m_MethodName, m_Arguments);
+                // Initialize cache for this index if not initialized
+                if (!editorCache.ContainsKey(index)) editorCache.Add(index, new());
+                var cache = editorCache[index];
+
+                // Generate dropdown if the the cache is empty
+                if (cache.dropdown == null)
+                {
+                    // Get current method ID based off of stored name (index really)
+                    cache.selectedMethodId = cachedSupportedMethods.FindMethod(m_AssemblyName, m_MethodName, m_Arguments);
+
+                    // Create dropdown
+                    var qualifiedMethodNames = cachedSupportedMethods.Select(i => i.qualifiedMethodName);
+                    var dropdownList = new List<string>() { "", "" }; // Add 2x blank line entries
+                    dropdownList.AddRange(qualifiedMethodNames);
+                    cache.dropdown = dropdownList.ToArray();
+                }
 
                 // Draw popup (dropdown box)
                 var previousMixedValue = EditorGUI.showMixedValue;
@@ -588,32 +610,30 @@ namespace TimelineTools
                     GUIStyle style = EditorStyles.popup;
                     style.richText = true;
 
-                    // Create dropdownlist with 'pseudo entries' for the currently selected method at the top of the list followed by a blank line
-                    var dropdownList = supportedMethods.Select(i => i.qualifiedMethodName).ToList();
-                    CallbackDescription selectedMethod = selectedMethodId > -1 ? supportedMethods[selectedMethodId] : null;
-                    dropdownList.Insert(0, ""); // insert line
-                    dropdownList.Insert(0, selectedMethodId > -1 ? selectedMethod.assemblyName.Split(",")[0] + "." + selectedMethod.fullMethodName : "No method");
+                    // Create dropdownlist with 'pseudo entry' for the currently selected method at the top of the list
+                    CallbackDescription selectedMethod = cache.selectedMethodId > -1 ? cachedSupportedMethods[cache.selectedMethodId] : null;
+                    cache.dropdown[0] = cache.selectedMethodId > -1 ? selectedMethod.assemblyName.Split(",")[0] + "." + selectedMethod.fullMethodName : "No method";
 
                     // Store old selected method id case it isn't changed
-                    var oldSelectedMethodId = selectedMethodId;
-                    selectedMethodId = EditorGUI.Popup(line, 0, dropdownList.ToArray(), style);
+                    var oldSelectedMethodId = cache.selectedMethodId;
+                    cache.selectedMethodId = EditorGUI.Popup(line, 0, cache.dropdown, style);
 
                     // Update field position
                     line.y += EditorGUIUtility.singleLineHeight + 2;
 
                     // Normalize selection
-                    if (selectedMethodId == 0)
-                        selectedMethodId = oldSelectedMethodId; // No selection so restore actual method id
+                    if (cache.selectedMethodId == 0)
+                        cache.selectedMethodId = oldSelectedMethodId; // No selection so restore actual method id
                     else
-                        selectedMethodId -= 2; // normalize to get actual Id (-2 for the two 'pseudo entries'
+                        cache.selectedMethodId -= 2; // normalize to get actual Id (-2 for the two 'pseudo entries'
                 }
 
                 EditorGUI.showMixedValue = previousMixedValue;
 
                 // If selected method is valid then try to draw parameters
-                if (selectedMethodId > -1 && selectedMethodId < supportedMethods.Count)
+                if (cache.selectedMethodId > -1 && cache.selectedMethodId < cachedSupportedMethods.Count)
                 {
-                    var callbackDescription = supportedMethods.ElementAt(selectedMethodId);
+                    var callbackDescription = cachedSupportedMethods.ElementAt(cache.selectedMethodId);
 
                     // Fillout assembly and method name properties using the selected id
                     m_AssemblyName.stringValue = callbackDescription.assemblyName;
@@ -738,8 +758,8 @@ namespace TimelineTools
                     // Loop over type for derived type up the entire inheritence hierarchy 
                     while (itemType != null)
                     {
-                    // Get methods for class type. Include instance methods if the type is a game object or component
-                    var methods = itemType.GetMethods((item is GameObject || item is Component ? BindingFlags.Instance : 0) | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        // Get methods for class type. Include instance methods if the type is a game object or component
+                        var methods = itemType.GetMethods((item is GameObject || item is Component ? BindingFlags.Instance : 0) | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                         foreach (var method in methods)
                         {
                             // don't support adding built in method names

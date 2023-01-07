@@ -713,23 +713,34 @@ namespace TimelineTools
                 }
             }
 
-            // Helper method for retrieving method signatures from a game object
-            public static IEnumerable<CallbackDescription> CollectSupportedMethods(GameObject gameObject)
+            // Helper method for retrieving method signatures from an Object
+            public static IEnumerable<CallbackDescription> CollectSupportedMethods(Object obj)
             {
-                if (gameObject == null) return Enumerable.Empty<CallbackDescription>();
+                // return if object is null
+                if (obj == null) return Enumerable.Empty<CallbackDescription>();
 
+                // Create a list to fill with supported methods
                 List<CallbackDescription> supportedMethods = new();
-                var components = gameObject.GetComponentsInChildren<Component>();
 
-                foreach (var component in components)
+                // Create a list of objects to search methods for (include base object)
+                List<Object> objectList = new() { obj };
+
+                // Get components if object is a game object
+                var components = (obj as GameObject)?.GetComponentsInChildren<Component>();
+                if (components != null) objectList.AddRange(components);
+
+                // Iterate over base Object and all components
+                foreach (var item in objectList)
                 {
-                    if (component == null)
-                        continue;
+                    // Get item type. If the type is a monoscript then get the class type directly
+                    var itemType = item is MonoScript monoScript ? monoScript.GetClass() : item.GetType();
 
-                    var componentType = component.GetType();
-                    while (componentType != typeof(Component) && componentType != null)
+                    // Loop over type for derived type up the entire inheritence hierarchy 
+                    while (itemType != null)
                     {
-                        var methods = componentType.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                        // Get methods for class type. Include instance methods if the type is a game object
+                        var methods = itemType.GetMethods((item is GameObject ? BindingFlags.Instance : 0) | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+
                         foreach (var method in methods)
                         {
                             // don't support adding built in method names
@@ -777,20 +788,22 @@ namespace TimelineTools
                             fullMethodName += ")";
 
                             // Collect the first two pieces of the FQN
-                            var assemblyName = componentType.FullName + "," + componentType.Module.Assembly.GetName().Name;
+                            var assemblyName = itemType.FullName + "," + itemType.Module.Assembly.GetName().Name;
 
                             // Create method description object
                             var supportedMethod = new CallbackDescription
                             {
                                 methodName = method.Name,
                                 fullMethodName = fullMethodName,
-                                qualifiedMethodName = componentType + "/" + fullMethodName[0] + "/" + fullMethodName,
+                                qualifiedMethodName = itemType + "/" + fullMethodName[0] + "/" + fullMethodName,
                                 parameterTypes = parameterTypes,
                                 assemblyName = assemblyName
                             };
                             supportedMethods.Add(supportedMethod);
                         }
-                        componentType = componentType.BaseType;
+
+                        // Get base type to check it for methods as well
+                        itemType = itemType.BaseType;
                     }
                 }
 

@@ -658,8 +658,8 @@ namespace TimelineTools
                     if (type != typeof(Playable) && type != typeof(EventMarkerNotification)) enterableArgCount++;
 
                 // Compute the rect for the method parameters based off of the count
-                var paramWidth = (rect.width - 10) / enterableArgCount;
-                rect.width = paramWidth;
+                var paramWidth = rect.width / enterableArgCount;
+                rect.width = paramWidth - 5;
 
                 // Grab the arguments property
                 SerializedProperty m_Arguments = element.FindPropertyRelative("arguments");
@@ -745,7 +745,7 @@ namespace TimelineTools
                     }
 
                     // Update field position
-                    rect.x += paramWidth + 5;
+                    rect.x += paramWidth;
                 }
             }
 

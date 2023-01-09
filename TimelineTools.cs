@@ -468,6 +468,7 @@ namespace TimelineTools
             GameObject cachedGameObject; // bound game object
             List<CallbackDescription> cachedSupportedMethods; // supported methods for the given game object
             ReorderableList cachedMethodList; // selected methods in a reorderable list
+            int cachedMethodListCount; // element count in cachedMethodList
 
             // Properties
             SerializedProperty m_Time;
@@ -535,7 +536,7 @@ namespace TimelineTools
                         Selection.SetActiveObjectWithContext(target, TimelineEditor.inspectedDirector); // Re-set the context
 
                     // Only rebuild list if something as changed (it isn't draggable otherwise)
-                    if (cachedMethodList == null || cachedGameObject != curGameObject)
+                    if (cachedMethodList == null || cachedMethodListCount != cachedMethodList.count || cachedGameObject != curGameObject)
                     {
                         // Warning -- event markers should only be used in event marker tracks for correct timeline preview behaviour
                         if (marker.parent is not EventMarkerTrack)
@@ -550,6 +551,7 @@ namespace TimelineTools
                             drawElementCallback = DrawMethodAndArguments,
                             drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
                         };
+                        cachedMethodListCount = cachedMethodList.count;
                         editorCache = new();
                     }
 

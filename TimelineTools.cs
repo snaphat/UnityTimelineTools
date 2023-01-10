@@ -548,7 +548,7 @@ namespace TimelineTools
                         {
                             elementHeightCallback = GetElementHeight,
                             drawElementCallback = DrawMethodAndArguments,
-                            drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); }
+                            drawHeaderCallback = delegate (Rect rect) { EditorGUI.LabelField(rect, "GameObject Methods"); },
                             onChangedCallback = delegate (ReorderableList list) { cachedMethodList = null; }
                         };
                         editorCache = new();
